@@ -29,7 +29,11 @@ jobs:
         shell: bash
         env:
           PR_BRANCH: ${{ github.head_ref }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
+          if [[ "$PR_AUTHOR" == 'dependabot[bot]' && "$PR_BRANCH" == dependabot/* ]]; then
+            exit 0
+          fi
           if [[ "$PR_BRANCH" =~ ^(feature|bugfix)/[a-z0-9]+(-[a-z0-9]+)*$ ]] ||
              [[ "$PR_BRANCH" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+-deployment$ ]]; then
             exit 0

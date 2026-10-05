@@ -7,12 +7,19 @@ frontend, and Python Movie Concierge. Production infrastructure is reconciled fr
 
 The `branch-name` job checks pull-request source branches: use `feature/<kebab-case-name>` for
 features and planned improvements, or `bugfix/<kebab-case-name>` for fixes. The CD workflow's
-`release/v<major>.<minor>.<patch>-deployment` branches are the only exception. Merge queue and manual
+`release/v<major>.<minor>.<patch>-deployment` branches and `dependabot/*` branches authored by
+`dependabot[bot]` are exceptions. Merge queue and manual
 runs skip this check because they do not have a pull-request source branch.
 
 Add `branch-name` as a required status check in the protection rule or ruleset for `master` to
 block merges with invalid branch names. CI reports violations but does not prevent local branch
 creation; `AGENTS.md` instructs coding agents to choose the correct prefix before creating branches.
+
+Dependabot security updates are grouped per deployable/package ecosystem in
+[`../dependabot.yml`](../dependabot.yml). Version-only update PRs are disabled with
+`open-pull-requests-limit: 0`; this does not disable security update PRs. Security updates must
+remain enabled in GitHub repository settings. These PRs run the same CI gates and require a merge;
+the configuration does not enable automatic merging or release new application images.
 
 Every pull request targeting `master`, every merged `master` commit, and a deliberate manual run
 starts separate jobs for:
