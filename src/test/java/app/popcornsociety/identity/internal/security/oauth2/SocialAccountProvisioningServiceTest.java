@@ -66,23 +66,36 @@ class SocialAccountProvisioningServiceTest {
   }
 
   @Test
-  void provision_verifiedEmailLinksExistingAccount() {
-    UserPrincipal principal = principal(2L, "test_user_two", "two@web.com");
+  void provision_verifiedProviderEmailCannotClaimExistingAccount() {
     when(accountIdentityService.findProviderLink("google", "google-subject"))
         .thenReturn(Optional.empty());
     when(accountIdentityService.findOptionalByEmail("two@web.com"))
         .thenReturn(Optional.of(new AccountIdentity(2L, "test_user_two", "two@web.com")));
-    when(userDetailsService.loadUserById(2L)).thenReturn(principal);
+    // Allow the vulnerable path to finish so the assertion detects the missing rejection.
+    org.mockito.Mockito.lenient()
+        .when(userDetailsService.loadUserById(2L))
+        .thenReturn(principal(2L, "test_user_two", "two@web.com"));
 
-    UserPrincipal result =
-        provisioningService.provision(
-            new SocialProviderIdentity("google", "google-subject", "two@web.com", true, Map.of()));
-
-    assertThat(result).isSameAs(principal);
-    verify(accountIdentityService).linkProvider(2L, "google", "google-subject", "two@web.com");
+    assertThatThrownBy(
+            () ->
+                provisioningService.provision(
+                    new SocialProviderIdentity(
+                        "google", "google-subject", "two@web.com", true, Map.of())))
+        .isInstanceOf(OAuth2AuthenticationException.class)
+        .satisfies(
+            error ->
+                assertThat(((OAuth2AuthenticationException) error).getError().getErrorCode())
+                    .isEqualTo("social_account_link_required"));
+    verify(accountIdentityService, never())
+        .linkProvider(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString());
+    verify(userDetailsService, never()).loadUserById(org.mockito.ArgumentMatchers.anyLong());
     verify(auditEvents)
         .recordCredentialEvent(
-            SecurityAuditEventType.SOCIAL_PROVIDER_LINKED, 2L, Map.of("provider", "google"));
+            SecurityAuditEventType.SOCIAL_PROVIDER_LINK_FAILED, 2L, Map.of("provider", "google"));
   }
 
   @Test
