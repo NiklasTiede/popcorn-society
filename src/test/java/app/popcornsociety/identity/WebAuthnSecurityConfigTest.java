@@ -1,8 +1,8 @@
 package app.popcornsociety.identity;
 
+import static app.popcornsociety.support.SecurityMockUsers.testUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -47,7 +47,7 @@ class WebAuthnSecurityConfigTest extends BaseContainers {
         .andExpect(status().isBadRequest());
 
     mockMvc
-        .perform(post("/webauthn/register/options").with(csrf()).with(user("user")))
+        .perform(post("/webauthn/register/options").with(csrf()).with(testUser()))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
   }

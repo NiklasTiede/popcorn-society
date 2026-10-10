@@ -32,6 +32,15 @@ class RestAuthorizationIntegrationTest extends BaseControllerIntegrationTest {
   @Autowired AccountRepository accounts;
   @Autowired RoleService roles;
 
+  @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+  @org.junit.jupiter.api.BeforeEach
+  void persistedOtherAccount() {
+    jdbc.update(
+        "insert into account(id, username, email, locked, enabled) values (3, 'other', 'other@example.com', false, true)");
+    jdbc.update("insert into account_roles(account_id, roles_id) values (3, 2)");
+  }
+
   enum Actor {
     ANONYMOUS,
     OWNER,
@@ -106,7 +115,18 @@ class RestAuthorizationIntegrationTest extends BaseControllerIntegrationTest {
         .andExpect(status().isForbidden());
     mvc.perform(
             post("/api/v1/auth/concierge-delegation")
-                .with(user("guest").roles("GUEST"))
+                .with(
+                    user(
+                        new UserPrincipal(
+                            3L,
+                            "Other",
+                            "User",
+                            "other",
+                            "other@example.com",
+                            "",
+                            false,
+                            true,
+                            List.of(new SimpleGrantedAuthority("ROLE_GUEST")))))
                 .with(csrf()))
         .andExpect(status().isForbidden());
   }

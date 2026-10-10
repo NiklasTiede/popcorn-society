@@ -21,8 +21,21 @@ import org.springframework.session.MapSessionRepository;
 class SessionConciergeDelegationTest {
   private final Clock clock = Clock.fixed(Instant.parse("2026-09-09T12:00:00Z"), ZoneOffset.UTC);
   private final MapSessionRepository sessions = new MapSessionRepository(new ConcurrentHashMap<>());
+  private final AccountSessionValidator validator =
+      org.mockito.Mockito.mock(AccountSessionValidator.class);
+
+  @org.junit.jupiter.api.BeforeEach
+  void activeAccounts() {
+    org.mockito.Mockito.when(validator.isCurrent(org.mockito.ArgumentMatchers.any()))
+        .thenAnswer(
+            invocation -> {
+              UserPrincipal user = invocation.getArgument(0);
+              return user != null && user.isEnabled() && user.isAccountNonLocked();
+            });
+  }
+
   private final SessionConciergeDelegation service =
-      new SessionConciergeDelegation(sessions, clock);
+      new SessionConciergeDelegation(sessions, clock, validator);
 
   @Test
   void verifiesOnlyTheSignedSessionActorAndAllowedScope() {
@@ -44,7 +57,8 @@ class SessionConciergeDelegationTest {
   void logoutAndExpiryRevokeEvenAnOtherwiseValidCredential() {
     var fixture = fixture(7L);
     var later =
-        new SessionConciergeDelegation(sessions, Clock.offset(clock, Duration.ofSeconds(301)));
+        new SessionConciergeDelegation(
+            sessions, Clock.offset(clock, Duration.ofSeconds(301)), validator);
     assertThatThrownBy(() -> later.verify(fixture.token(), "watchlist:read"))
         .isInstanceOf(AccessDeniedException.class);
     sessions.deleteById(fixture.session().getId());
@@ -96,7 +110,8 @@ class SessionConciergeDelegationTest {
     assertThat(initial.expiresAt()).isEqualTo(clock.instant().plusSeconds(300));
     var fixture = fixture(7L);
     var deadline =
-        new SessionConciergeDelegation(sessions, Clock.offset(clock, Duration.ofMinutes(5)));
+        new SessionConciergeDelegation(
+            sessions, Clock.offset(clock, Duration.ofMinutes(5)), validator);
     assertThatThrownBy(() -> deadline.verify(fixture.token(), "watchlist:read"))
         .isInstanceOf(AccessDeniedException.class);
   }
@@ -111,7 +126,7 @@ class SessionConciergeDelegationTest {
       })
   void invalidClaimsAreRejectedBeforeReadingASession(String claims) {
     var repository = org.mockito.Mockito.mock(StoredSessions.class);
-    var verifier = new SessionConciergeDelegation(repository, clock);
+    var verifier = new SessionConciergeDelegation(repository, clock, validator);
     var token =
         java.util.Base64.getUrlEncoder()
                 .withoutPadding()
@@ -172,7 +187,7 @@ class SessionConciergeDelegationTest {
     session.setLastAccessedTime(Instant.EPOCH);
     var repository = org.mockito.Mockito.mock(StoredSessions.class);
     org.mockito.Mockito.when(repository.findById(session.getId())).thenReturn(session);
-    var verifier = new SessionConciergeDelegation(repository, clock);
+    var verifier = new SessionConciergeDelegation(repository, clock, validator);
     assertThatThrownBy(() -> verifier.verify(fixture.token(), "watchlist:read"))
         .isInstanceOf(AccessDeniedException.class);
   }

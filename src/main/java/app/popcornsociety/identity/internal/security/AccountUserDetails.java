@@ -52,6 +52,7 @@ public class AccountUserDetails implements UserDetailsService, CustomUserDetails
         account.password(),
         account.locked(),
         account.enabled(),
-        account.roleNames().stream().map(SimpleGrantedAuthority::new).toList());
+        account.roleNames().stream().map(SimpleGrantedAuthority::new).toList(),
+        account.securityVersion());
   }
 }

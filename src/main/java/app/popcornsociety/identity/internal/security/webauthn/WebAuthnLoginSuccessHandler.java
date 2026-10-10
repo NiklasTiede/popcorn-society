@@ -5,9 +5,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -37,8 +40,12 @@ public class WebAuthnLoginSuccessHandler implements AuthenticationSuccessHandler
     }
 
     UserDetails userDetails = userDetailsService.loadUserByUsername(authentication.getName());
+    var authorities = new ArrayList<GrantedAuthority>(userDetails.getAuthorities());
+    authentication.getAuthorities().stream()
+        .filter(FactorGrantedAuthority.class::isInstance)
+        .forEach(authorities::add);
     UsernamePasswordAuthenticationToken normalizedAuthentication =
-        new UsernamePasswordAuthenticationToken(userDetails, null, authentication.getAuthorities());
+        new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
     normalizedAuthentication.setDetails(authentication.getDetails());
 
     SecurityContext context = SecurityContextHolder.createEmptyContext();

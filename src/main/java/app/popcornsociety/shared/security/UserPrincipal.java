@@ -10,8 +10,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 public class UserPrincipal implements UserDetails {
 
+  private static final long serialVersionUID = 3317073886489748654L;
+
   private static final String ADMIN_ROLE = "ROLE_ADMIN";
 
+  @JsonIgnore private final long securityVersion;
   private final Long id;
   private final String firstName;
   private final String lastName;
@@ -32,6 +35,21 @@ public class UserPrincipal implements UserDetails {
       boolean locked,
       boolean enabled,
       Collection<? extends GrantedAuthority> authorities) {
+    this(id, firstName, lastName, username, email, password, locked, enabled, authorities, 0);
+  }
+
+  public UserPrincipal(
+      Long id,
+      String firstName,
+      String lastName,
+      String username,
+      String email,
+      String password,
+      boolean locked,
+      boolean enabled,
+      Collection<? extends GrantedAuthority> authorities,
+      long securityVersion) {
+    this.securityVersion = securityVersion;
     this.id = id;
     this.firstName = firstName;
     this.lastName = lastName;
@@ -46,6 +64,10 @@ public class UserPrincipal implements UserDetails {
     } else {
       this.authorities = new ArrayList<>(authorities);
     }
+  }
+
+  public long getSecurityVersion() {
+    return securityVersion;
   }
 
   public Long getId() {
