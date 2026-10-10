@@ -58,10 +58,16 @@ public class WebSecurityConfig {
   @Bean
   @Order(2)
   public SecurityFilterChain filterChain(
-      HttpSecurity http, ProblemDetailAccessDeniedHandler accessDeniedHandler) throws Exception {
+      HttpSecurity http,
+      ProblemDetailAccessDeniedHandler accessDeniedHandler,
+      AccountSessionValidator sessionValidator)
+      throws Exception {
     CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
 
-    http.csrf(
+    http.addFilterAfter(
+            new AccountSessionValidationFilter(sessionValidator),
+            org.springframework.security.web.context.SecurityContextHolderFilter.class)
+        .csrf(
             csrf ->
                 csrf.csrfTokenRepository(csrfTokenRepository)
                     .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())

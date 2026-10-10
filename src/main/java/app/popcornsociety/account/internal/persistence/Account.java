@@ -33,6 +33,14 @@ public class Account extends DateAudit {
   @Column(length = 255)
   private String imageUrlToken;
 
+  @JsonIgnore
+  @Column(nullable = false, insertable = false, updatable = false)
+  private long securityVersion;
+
+  public long getSecurityVersion() {
+    return securityVersion;
+  }
+
   @JsonIgnore private Boolean locked = false;
   @JsonIgnore private Boolean enabled = false;
 

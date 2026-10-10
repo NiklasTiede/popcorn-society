@@ -10,6 +10,8 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 
 public class SocialUserPrincipal extends UserPrincipal implements OidcUser {
 
+  private static final long serialVersionUID = 9133163625426103909L;
+
   private final Map<String, Object> attributes;
   private final Map<String, Object> claims;
   private final String name;
@@ -32,7 +34,8 @@ public class SocialUserPrincipal extends UserPrincipal implements OidcUser {
         principal.getPassword(),
         !principal.isAccountNonLocked(),
         principal.isEnabled(),
-        principal.getAuthorities());
+        principal.getAuthorities(),
+        principal.getSecurityVersion());
     this.attributes = withoutNullValues(attributes);
     this.claims = withoutNullValues(claims);
     this.name = name;

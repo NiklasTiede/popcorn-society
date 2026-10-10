@@ -59,6 +59,7 @@ public class AccountRoles implements RoleService {
     roles.remove(adminRole);
     account.setRoles(roles);
     Account updatedAccount = accountRepository.save(account);
+    accountRepository.revokeSessions(account.getId());
     logger.info(
         "Account with id [{}] was taken ADMIN permission.", kv(ACCOUNT_ID, updatedAccount.getId()));
     return new MessageResponse(

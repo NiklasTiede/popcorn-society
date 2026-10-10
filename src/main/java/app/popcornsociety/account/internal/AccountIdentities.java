@@ -36,6 +36,12 @@ public class AccountIdentities implements AccountIdentityService {
   }
 
   @Override
+  public Optional<app.popcornsociety.account.api.AccountSessionState> findSessionState(
+      Long accountId) {
+    return accountRepository.findSessionState(accountId);
+  }
+
+  @Override
   public boolean isUsernameAvailable(String username) {
     return !accountRepository.existsByUsername(username);
   }
@@ -132,6 +138,7 @@ public class AccountIdentities implements AccountIdentityService {
             .orElseGet(() -> new LocalCredential(accountId, passwordHash));
     credential.setPasswordHash(passwordHash);
     localCredentialRepository.save(credential);
+    accountRepository.revokeSessions(accountId);
   }
 
   @Override
@@ -186,6 +193,7 @@ public class AccountIdentities implements AccountIdentityService {
         passwordHash,
         account.getLocked(),
         account.getEnabled(),
-        account.getRoles().stream().map(role -> role.getName().name()).toList());
+        account.getRoles().stream().map(role -> role.getName().name()).toList(),
+        account.getSecurityVersion());
   }
 }

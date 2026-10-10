@@ -29,18 +29,19 @@ public class SessionConciergeDelegation implements ConciergeDelegation {
       "watchlist:read,watchlist:add,watchlist:remove,ratings:read,ratings:set,ratings:remove";
   private final SessionRepository<? extends Session> sessions;
   private final Clock clock;
+  private final AccountSessionValidator validator;
 
   public SessionConciergeDelegation(
-      SessionRepository<? extends Session> sessions, @Qualifier("identityClock") Clock clock) {
+      SessionRepository<? extends Session> sessions,
+      @Qualifier("identityClock") Clock clock,
+      AccountSessionValidator validator) {
     this.sessions = sessions;
     this.clock = clock;
+    this.validator = validator;
   }
 
   public ConciergeDelegationResponse issue(HttpSession session, UserPrincipal principal) {
-    if (session == null
-        || principal == null
-        || !principal.isEnabled()
-        || !principal.isAccountNonLocked()) {
+    if (session == null || principal == null || !validator.isCurrent(principal)) {
       throw denied();
     }
     String key;
@@ -98,6 +99,10 @@ public class SessionConciergeDelegation implements ConciergeDelegation {
           || !user.isEnabled()
           || !user.isAccountNonLocked()
           || !user.getId().toString().equals(claims[1])) throw denied();
+      if (!validator.isCurrent(user)) {
+        sessions.deleteById(session.getId());
+        throw denied();
+      }
       boolean permitted =
           user.getAuthorities().stream()
               .anyMatch(a -> Set.of("ROLE_USER", "ROLE_ADMIN").contains(a.getAuthority()));

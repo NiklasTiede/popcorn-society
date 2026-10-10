@@ -18,11 +18,23 @@ import org.springframework.session.MapSessionRepository;
 
 class ConciergeDelegationControllerTest {
   private final Instant now = Instant.parse("2026-09-09T12:00:00Z");
+  private final app.popcornsociety.account.api.AccountIdentityService accounts =
+      org.mockito.Mockito.mock(app.popcornsociety.account.api.AccountIdentityService.class);
+
+  @org.junit.jupiter.api.BeforeEach
+  void activeAccount() {
+    org.mockito.Mockito.when(accounts.findSessionState(7L))
+        .thenReturn(
+            java.util.Optional.of(
+                new app.popcornsociety.account.api.AccountSessionState(0, false, true)));
+  }
+
   private final ConciergeDelegationController controller =
       new ConciergeDelegationController(
           new SessionConciergeDelegation(
               new MapSessionRepository(new ConcurrentHashMap<>()),
-              Clock.fixed(now, ZoneOffset.UTC)));
+              Clock.fixed(now, ZoneOffset.UTC),
+              new app.popcornsociety.identity.internal.security.AccountSessionValidator(accounts)));
   private final UserPrincipal user =
       new UserPrincipal(
           7L,

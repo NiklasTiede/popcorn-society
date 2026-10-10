@@ -6,6 +6,8 @@ import org.springframework.modulith.NamedInterface;
 @NamedInterface("identity")
 public interface AccountIdentityService {
 
+  Optional<AccountSessionState> findSessionState(Long accountId);
+
   boolean isUsernameAvailable(String username);
 
   boolean isEmailAvailable(String email);
