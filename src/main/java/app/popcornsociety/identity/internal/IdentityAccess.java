@@ -71,13 +71,6 @@ public class IdentityAccess implements AuthenticationService {
   }
 
   @Override
-  public UserIdentityAvailability checkEmailAvailability(String email) {
-    Boolean isAvailable = accountIdentityService.isEmailAvailable(email);
-    logger.info("email [{}] available? {}", email, isAvailable);
-    return new UserIdentityAvailability(isAvailable);
-  }
-
-  @Override
   @Transactional
   public MessageResponse registerUser(RegistrationRequest request) {
 
@@ -144,11 +137,14 @@ public class IdentityAccess implements AuthenticationService {
   @Override
   @Transactional
   public MessageResponse resetPassword(String email) {
-    AccountIdentity account = accountIdentityService.findByEmail(email);
-    return createAndSendPasswordResetToken(account);
+    accountIdentityService
+        .findOptionalByEmail(email)
+        .ifPresent(this::createAndSendPasswordResetToken);
+    return new MessageResponse(
+        "If an account exists for this email, password reset instructions will be sent.");
   }
 
-  private MessageResponse createAndSendPasswordResetToken(AccountIdentity account) {
+  private void createAndSendPasswordResetToken(AccountIdentity account) {
     String token = tokenHasher.newRawToken();
     VerificationToken verificationToken =
         new VerificationToken(
@@ -167,7 +163,6 @@ public class IdentityAccess implements AuthenticationService {
             account.email(), account.username(), link, verificationToken.getExpiryDateInUtc()));
     logger.info(
         "password reset email for account with [{}] was requested", kv(ACCOUNT_ID, account.id()));
-    return new MessageResponse("Email was send successfully");
   }
 
   @Override

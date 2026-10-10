@@ -31,8 +31,12 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 0
+    # Keep immutable action SHAs current through reviewable version-update PRs.
+    open-pull-requests-limit: 5
     groups:
+      actions-version:
+        applies-to: version-updates
+        patterns: ["*"]
       actions-security:
         applies-to: security-updates
         patterns: ["*"]

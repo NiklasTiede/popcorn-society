@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "yaml"
+
 repository_root = File.expand_path("../../../..", __dir__)
 ci = File.read(File.join(repository_root, ".github/workflows/continuous-integration.yaml"))
 release = File.read(File.join(repository_root, ".github/workflows/continuous-deployment.yaml"))
@@ -66,6 +68,48 @@ assert_contract(
   "release images must use short-lived uncompressed artifact uploads"
 )
 
+release_document = YAML.load_file(File.join(repository_root, ".github/workflows/continuous-deployment.yaml"))
+release_job = release_document.fetch("jobs").fetch("release-app")
+assert_contract(
+  release_document.fetch("permissions") == { "contents" => "read" },
+  "workflow default permissions must be read-only"
+)
+assert_contract(
+  release_job.fetch("permissions") == {
+    "actions" => "read", "contents" => "write", "pull-requests" => "write"
+  },
+  "release job must request only artifact-read, ref-write, and PR-write scopes"
+)
+steps = release_job.fetch("steps")
+steps.select { |step| step.key?("uses") }.each do |step|
+  assert_contract(
+    step.fetch("uses").match?(/\A[\w.-]+\/[\w.\/-]+@[0-9a-f]{40}\z/),
+    "release actions must pin full immutable upstream commit SHAs: #{step.fetch("name")}"
+  )
+end
+checkout = steps.find { |step| step.fetch("uses", "").start_with?("actions/checkout@") }
+assert_contract(
+  checkout&.dig("with", "persist-credentials") == false,
+  "checkout must not persist write credentials across build and validation steps"
+)
+git_steps = steps.select { |step| step.fetch("run", "").match?(/\bgit push\b/) }
+assert_contract(git_steps.length == 2, "only deployment branch and tag steps may push")
+git_steps.each do |step|
+  env = step.fetch("env")
+  assert_contract(
+    env["GH_TOKEN"] == "${{ secrets.GITHUB_TOKEN }}" &&
+      env["GIT_TERMINAL_PROMPT"] == "0" &&
+      env["GIT_CONFIG_COUNT"] == "1" &&
+      env["GIT_CONFIG_KEY_0"] == "credential.helper" &&
+      env["GIT_CONFIG_VALUE_0"] == '!f() { printf "%s\n" "username=x-access-token" "password=$GH_TOKEN"; }; f',
+    "Git pushes must use a transient credential helper with step-scoped authentication"
+  )
+end
+assert_contract(
+  (steps - git_steps).all? { |step| !step.fetch("env", {}).key?("GIT_CONFIG_VALUE_0") },
+  "Git push credentials must not persist into other release steps"
+)
+
 assert_contract(release.include?("contents: write"), "release requires contents write permission")
 assert_contract(
   release.include?("pull-requests: write"),
@@ -100,7 +144,7 @@ assert_contract(
   "release image archives must be regular, non-linked, valid gzip files before loading"
 )
 assert_contract(
-  release.scan("uses: actions/download-artifact@v8").length == 3 &&
+  release.scan(/uses: actions\/download-artifact@[0-9a-f]{40} # v8/).length == 3 &&
     release.scan("run-id: ${{ github.event.workflow_run.id }}").length == 3,
   "release must download all images from the triggering CI run"
 )

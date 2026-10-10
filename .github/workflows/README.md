@@ -16,10 +16,12 @@ block merges with invalid branch names. CI reports violations but does not preve
 creation; `AGENTS.md` instructs coding agents to choose the correct prefix before creating branches.
 
 Dependabot security updates are grouped per deployable/package ecosystem in
-[`../dependabot.yml`](../dependabot.yml). Version-only update PRs are disabled with
+[`../dependabot.yml`](../dependabot.yml). Version-only update PRs for application dependencies are disabled with
 `open-pull-requests-limit: 0`; this does not disable security update PRs. Security updates must
 remain enabled in GitHub repository settings. These PRs run the same CI gates and require a merge;
-the configuration does not enable automatic merging or release new application images.
+the configuration does not enable automatic merging or release new application images. GitHub Actions
+version updates have a separate limit of five grouped PRs so reviewed updates keep the release
+workflow's full commit SHA pins current. Readable comments identify the pinned upstream versions.
 
 Every pull request targeting `master`, every merged `master` commit, and a deliberate manual run
 starts separate jobs for:
@@ -61,6 +63,14 @@ The repository must allow GitHub Actions to create pull requests under **Setting
 General → Workflow permissions**. Pull-request CI created with the repository `GITHUB_TOKEN` needs
 one manual approval from a user with write access. No personal access token or protected-branch
 bypass is required.
+
+The workflow defaults to `contents: read`. Only the release job receives `actions: read` (verified
+image artifact downloads), `contents: write` (deployment branch and release tag), and
+`pull-requests: write` (deployment PR). Checkout uses `persist-credentials: false`; the two Git
+push steps supply a transient credential helper through process environment only. Build and
+validation steps therefore have no persisted checkout credentials. The release job still has
+write-capable `GITHUB_TOKEN` permissions, and Docker publishing still uses the existing
+`DOCKERHUB_TOKEN`; this change does not create a new restricted publishing identity.
 
 Provider and MCP credentials are not available to GitHub Actions. The agent build and deterministic
 verification path requires neither an OpenAI key nor a running Java service.

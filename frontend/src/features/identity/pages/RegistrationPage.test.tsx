@@ -11,7 +11,6 @@ import * as identityMutations from "../api/identityMutations";
 import RegistrationPage from "./RegistrationPage";
 
 vi.mock("../api/identityAvailability", () => ({
-  checkEmailAvailability: vi.fn(),
   checkUsernameAvailability: vi.fn(),
 }));
 vi.mock("../api/identityMutations", async (importOriginal) => {
@@ -42,7 +41,7 @@ const fillValidRegistration = async (
   await user.type(screen.getByLabelText("Email"), "new@example.com");
   await user.type(screen.getByLabelText("Password"), "Movie!12");
   await user.type(screen.getByLabelText("Confirm password"), "Movie!12");
-  await waitFor(() => expect(screen.getAllByText("Available")).toHaveLength(2));
+  await waitFor(() => expect(screen.getAllByText("Available")).toHaveLength(1));
   await waitFor(() =>
     expect(
       screen.getByRole("button", { name: "Create account" }),
@@ -53,9 +52,6 @@ const fillValidRegistration = async (
 describe("RegistrationPage", () => {
   beforeEach(() => {
     vi.mocked(availabilityApi.checkUsernameAvailability).mockResolvedValue({
-      isAvailable: true,
-    });
-    vi.mocked(availabilityApi.checkEmailAvailability).mockResolvedValue({
       isAvailable: true,
     });
     vi.mocked(identityMutations.registerAccount).mockResolvedValue({
@@ -140,6 +136,27 @@ describe("RegistrationPage", () => {
     expect(
       screen.getByRole("button", { name: "Create account" }),
     ).not.toHaveProperty("disabled", true);
+  });
+
+  it("validates email locally without exposing account availability", async () => {
+    const user = userEvent.setup();
+    renderRegistrationPage();
+    await user.type(screen.getByLabelText("Email"), "new@example.com");
+    await user.tab();
+    expect(screen.queryByText("Available")).not.toBeInTheDocument();
+    expect(screen.queryByText("In use")).not.toBeInTheDocument();
+  });
+
+  it("still maps a duplicate email at registration to the field", async () => {
+    const user = userEvent.setup();
+    vi.mocked(identityMutations.registerAccount).mockRejectedValue({
+      response: { data: { errors: { email: "Email is already used" } } },
+    });
+    renderRegistrationPage();
+    await fillValidRegistration(user);
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+    expect(await screen.findByText("Email is already used")).toBeTruthy();
+    expect(screen.getByLabelText("Email")).toHaveFocus();
   });
 
   it("shows progress while account creation is pending", async () => {

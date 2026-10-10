@@ -77,7 +77,7 @@ explicitly disabled. Its manifests live under
 `infrastructure/clusters/home/maintenance/movie-seed`; changing `VERSION`, backend, frontend, or
 agent images cannot execute them.
 
-The seed release is a normal versioned Job rather than an Argo hook. Its immutable name, image tag,
+The seed release is a normal versioned Job rather than an Argo hook. Its immutable name, image tag/digest,
 label, and `SEED_VERSION` must change together for a new dataset. A completed Job remains visible as
 the applied seed version, and synchronizing the same revision again does not create another pod.
 The seed itself remains idempotent: an intentional new run upserts movie rows and uploads media
@@ -85,13 +85,26 @@ objects without deleting existing catalog data.
 
 For a deliberate data release:
 
-1. Build and publish the versioned full seed image.
+1. Build and publish the versioned full seed image. Resolve its multi-platform index digest with
+   `docker buildx imagetools inspect niklastiede/imdb-clone-seed:full-v<VERSION>` and retain the
+   readable tag plus verified `@sha256:` digest.
 2. Update the Job name, image, version label, and `SEED_VERSION` in
    `infrastructure/clusters/home/maintenance/movie-seed/job.yaml`.
 3. Merge and verify that only the `imdb-clone-seed` Application is `OutOfSync`.
 4. In Argo CD, open `imdb-clone-seed`, review its diff, and select **Sync**. Enable pruning when
    replacing an older completed seed Job.
 5. Observe the Job to completion, then rebuild the OpenSearch movie index explicitly.
+
+The checked-in `full-v0.2.2` image is pinned to its Docker Hub multi-platform index without changing
+the dataset version or Job name. Kubernetes cannot patch an existing Job's pod-template image.
+If that Job already exists, manually syncing this pin requires deliberate Job replacement and will
+rerun the idempotent seed. Review that operation separately; do not force-replace the Job during a
+normal application release. The seed Application's disabled automated sync keeps this change from
+executing a seed automatically.
+
+The Grafana viewer-user hook also retains curl 8.11.1 with its verified multi-platform manifest
+digest. Refresh these pins only after inspecting the upstream registry manifest, preserving the
+version tag for review. Digest verification reads registry metadata and does not execute images.
 
 `seed-job.example.yaml` remains a standalone reference for a new environment. It is not part of the
 automated home-cluster render.

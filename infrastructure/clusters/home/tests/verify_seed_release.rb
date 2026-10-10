@@ -72,8 +72,10 @@ assert_contract(
   "seed Job label and declared seed version must match"
 )
 assert_contract(
-  seed_container["image"] == "niklastiede/imdb-clone-seed:full-#{seed_version}",
-  "seed image and declared seed version must match"
+  seed_container["image"].match?(
+    /\Aniklastiede\/imdb-clone-seed:full-#{Regexp.escape(seed_version)}@sha256:[0-9a-f]{64}\z/
+  ),
+  "seed image must match the declared version and pin an immutable digest"
 )
 
 puts "Manual movie seed release contracts passed."

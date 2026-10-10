@@ -17,7 +17,8 @@ spec:
       restartPolicy: Never
       containers:
         - name: seed
-          image: niklastiede/imdb-clone-seed:full-v0.2.2
+          # Docker Hub multi-platform index for the existing full-v0.2.2 dataset.
+          image: niklastiede/imdb-clone-seed:full-v0.2.2@sha256:d903240f1eb664fb85d0f49f7260f22e786eac0516532aa6a8a9c79a714df576
           imagePullPolicy: IfNotPresent
           args: ["all"]
           env:

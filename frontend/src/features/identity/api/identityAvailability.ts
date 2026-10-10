@@ -7,10 +7,3 @@ export const checkUsernameAvailability = async (
   const response = await authApi.checkUsernameAvailability(username);
   return response.data;
 };
-
-export const checkEmailAvailability = async (
-  email: string,
-): Promise<UserIdentityAvailability> => {
-  const response = await authApi.checkEmailAvailability(email);
-  return response.data;
-};

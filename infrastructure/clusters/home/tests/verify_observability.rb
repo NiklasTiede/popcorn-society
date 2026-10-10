@@ -251,6 +251,18 @@ assert_contract(
 )
 
 observability = resource(documents, "Application", "observability", "argocd")
+viewer_job = resource(
+  observability.dig("spec", "source", "helm", "valuesObject", "extraManifests"),
+  "Job", "observability-grafana-viewer-user", "observability"
+)
+viewer_container = viewer_job.dig("spec", "template", "spec", "containers").find do |container|
+  container["name"] == "configure-viewer"
+end
+assert_contract(
+  viewer_container&.fetch("image", "")&.match?(/\Acurlimages\/curl:8\.11\.1@sha256:[0-9a-f]{64}\z/),
+  "Grafana credential hook must keep curl 8.11.1 pinned to an immutable digest"
+)
+
 datasources = observability.dig(
   "spec",
   "source",

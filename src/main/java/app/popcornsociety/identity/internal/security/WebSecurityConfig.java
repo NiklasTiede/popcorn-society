@@ -85,10 +85,7 @@ public class WebSecurityConfig {
                     .permitAll())
         .authorizeHttpRequests(
             ar ->
-                ar.requestMatchers(
-                        HttpMethod.GET,
-                        "/api/v1/auth/check-username-availability",
-                        "/api/v1/auth/check-email-availability")
+                ar.requestMatchers(HttpMethod.GET, "/api/v1/auth/check-username-availability")
                     .permitAll()
                     .requestMatchers(
                         HttpMethod.POST,

@@ -6,8 +6,6 @@ public interface AuthenticationService {
 
   UserIdentityAvailability checkUsernameAvailability(String username);
 
-  UserIdentityAvailability checkEmailAvailability(String email);
-
   MessageResponse registerUser(RegistrationRequest request);
 
   MessageResponse confirmEmailAddress(String token);

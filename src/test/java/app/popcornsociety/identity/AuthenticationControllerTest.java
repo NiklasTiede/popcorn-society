@@ -69,21 +69,40 @@ class AuthenticationControllerTest extends BaseControllerIntegrationTest {
   }
 
   @Test
-  void checkEmailAvailability_availableEmail() {
-    restTestClient
-        .get()
-        .uri(
-            uriBuilder ->
-                uriBuilder
-                    .path("/api/v1/auth/check-email-availability")
-                    .queryParam("email", "new-user@example.com")
-                    .build())
-        .accept(MediaType.APPLICATION_JSON)
-        .exchange()
-        .expectAll(
-            spec -> spec.expectStatus().isOk(),
-            spec -> spec.expectHeader().contentType(MediaType.APPLICATION_JSON),
-            spec -> spec.expectBody().jsonPath("$.isAvailable").isEqualTo(true));
+  void emailAvailabilityIsNotPublic() throws Exception {
+    for (String email : new String[] {"one@gmail.com", "missing@example.com"}) {
+      mockMvc
+          .perform(get("/api/v1/auth/check-email-availability").param("email", email))
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.isAvailable").doesNotExist());
+    }
+  }
+
+  @Test
+  void passwordResetExistingAndMissingEmailsHaveIdenticalHttpResponses() throws Exception {
+    String existing =
+        mockMvc
+            .perform(
+                post("/api/v1/auth/password-reset-requests")
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\":\"two@web.com\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String missing =
+        mockMvc
+            .perform(
+                post("/api/v1/auth/password-reset-requests")
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\":\"missing@example.com\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(existing).isEqualTo(missing).doesNotContain("two@web.com", "missing@example.com");
   }
 
   @Test

@@ -47,12 +47,6 @@ public class AuthenticationController {
         authenticationService.checkUsernameAvailability(username), HttpStatus.OK);
   }
 
-  @GetMapping("/check-email-availability")
-  public ResponseEntity<UserIdentityAvailability> checkEmailAvailability(
-      @RequestParam("email") String email) {
-    return new ResponseEntity<>(authenticationService.checkEmailAvailability(email), HttpStatus.OK);
-  }
-
   @PostMapping("/login")
   public ResponseEntity<AccountSessionResponse> authenticateAccount(
       @Valid @RequestBody LoginRequest request,

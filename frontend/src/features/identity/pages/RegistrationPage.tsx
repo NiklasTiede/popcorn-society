@@ -23,10 +23,7 @@ import {
   getRegistrationInvalidParams,
   registerAccount,
 } from "../api/identityMutations";
-import {
-  checkEmailAvailability,
-  checkUsernameAvailability,
-} from "../api/identityAvailability";
+import { checkUsernameAvailability } from "../api/identityAvailability";
 import { authTextFieldSx } from "../components/authFormStyles";
 import SocialLoginButtons from "../components/SocialLoginButtons";
 import { useAvailability } from "../hooks/useAvailability";
@@ -60,7 +57,6 @@ const RegistrationPage = () => {
   });
 
   const username = watch("username") ?? "";
-  const email = watch("email") ?? "";
   const password = watch("password") ?? "";
 
   const usernameAvailability = useAvailability({
@@ -68,12 +64,6 @@ const RegistrationPage = () => {
     enabled: !errors.username && username.length >= 2,
     value: username,
   });
-  const emailAvailability = useAvailability({
-    checkFn: checkEmailAvailability,
-    enabled: !errors.email && /.+@.+\..+/.test(email),
-    value: email,
-  });
-
   const registerAccountMutation = useMutation({
     mutationFn: registerAccount,
     onMutate: () => setFeedback(null),
@@ -123,9 +113,7 @@ const RegistrationPage = () => {
   const canSubmit =
     !registerAccountMutation.isPending &&
     usernameAvailability.status !== "checking" &&
-    usernameAvailability.status !== "taken" &&
-    emailAvailability.status !== "checking" &&
-    emailAvailability.status !== "taken";
+    usernameAvailability.status !== "taken";
 
   return (
     <AuthPageFrame formMaxWidth={480} variant="signup">
@@ -189,23 +177,8 @@ const RegistrationPage = () => {
             autoComplete="email"
             error={!!errors.email}
             fullWidth
-            helperText={
-              errors.email?.message ??
-              (emailAvailability.status === "error"
-                ? "Availability check unavailable; we will verify when you submit."
-                : " ")
-            }
+            helperText={errors.email?.message ?? " "}
             label="Email"
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <AvailabilityAdornment
-                    status={emailAvailability.status}
-                    takenLabel="In use"
-                  />
-                ),
-              },
-            }}
             type="email"
             {...register("email")}
             sx={authTextFieldSx}
