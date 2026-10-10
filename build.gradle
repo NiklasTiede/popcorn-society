@@ -213,6 +213,9 @@ def integrationTest = tasks.register('integrationTest', Test) {
 	group = LifecycleBasePlugin.VERIFICATION_GROUP
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
+	// Bound retained Spring contexts and leave room for OpenAPI generation in CI.
+	maxHeapSize = '1g'
+	systemProperty 'spring.test.context.cache.maxSize', '8'
 	useJUnitPlatform {
 		includeTags 'integration'
 	}
