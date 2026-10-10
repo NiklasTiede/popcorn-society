@@ -48,13 +48,21 @@ public class SocialAccountProvisioningService {
       throw new OAuth2AuthenticationException("social_email_not_verified");
     }
 
+    Optional<AccountIdentity> accountWithEmail =
+        accountIdentityService.findOptionalByEmail(socialIdentity.email());
+    if (accountWithEmail.isPresent()) {
+      // Provider verification proves mailbox control, not ownership of existing credentials.
+      // Never turn an email collision into an implicit account-linking operation.
+      auditEvents.recordCredentialEvent(
+          SecurityAuditEventType.SOCIAL_PROVIDER_LINK_FAILED,
+          accountWithEmail.get().id(),
+          Map.of("provider", socialIdentity.provider()));
+      throw new OAuth2AuthenticationException("social_account_link_required");
+    }
+
     AccountIdentity account =
-        accountIdentityService
-            .findOptionalByEmail(socialIdentity.email())
-            .orElseGet(
-                () ->
-                    accountIdentityService.createSocialAccount(
-                        uniqueUsername(socialIdentity.email()), socialIdentity.email()));
+        accountIdentityService.createSocialAccount(
+            uniqueUsername(socialIdentity.email()), socialIdentity.email());
 
     accountIdentityService.linkProvider(
         account.id(),
