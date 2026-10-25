@@ -2,7 +2,7 @@
 # Run locally with make docker-run-frontend (port 3000 -> 8080).
 
 # Stage 1: Install dependencies and build the application
-FROM node:24-alpine AS build
+FROM node:24.22.1-alpine AS build
 WORKDIR /app
 # Install Java for openapi-generator-cli
 RUN apk add --no-cache openjdk25-jre

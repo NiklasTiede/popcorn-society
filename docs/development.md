@@ -7,12 +7,27 @@ repository root unless a command says otherwise.
 
 - Java 25
 - Docker with Compose
-- Node.js 24
+- Node.js 24.22.1 LTS (pinned in the root `.node-version`)
 - Yarn
 - Python 3.14
 - uv
 - Make
 - Optional for deployment validation: `kubectl`, cluster access, and SOPS/age tooling
+
+CI, manual E2E runs, and manual releases read `.node-version`; the frontend Docker build pins the
+same version in `frontend/Dockerfile`. Update both pins and `frontend/package.json`'s `engines.node`
+together when applying Node.js security releases. The engine requirement rejects releases older
+than the October 2026 security fixes; patched Node.js 26 releases (26.12.1 or newer) are also
+accepted for local development.
+
+Use a version manager that reads `.node-version`, or install the LTS runtime with Homebrew and
+select it for the current terminal:
+
+```bash
+brew install node@24
+export PATH="$(brew --prefix node@24)/bin:$PATH"
+node --version
+```
 
 Check local tools:
 
