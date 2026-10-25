@@ -5,7 +5,7 @@ repository root unless a command says otherwise.
 
 ## Prerequisites
 
-- Java 25
+- Java 25.0.5 (pinned in the root `.java-version`)
 - Docker with Compose
 - Node.js 24.22.1 LTS (pinned in the root `.node-version`)
 - Yarn
@@ -13,6 +13,11 @@ repository root unless a command says otherwise.
 - uv
 - Make
 - Optional for deployment validation: `kubectl`, cluster access, and SOPS/age tooling
+
+CI, manual E2E runs, and manual releases read `.java-version` for Temurin. Both backend Dockerfiles
+pin the corresponding JDK/JRE patch release; the standalone build uses the checked-in Gradle
+wrapper. Update the Java version file and both Dockerfiles together for security releases. A
+backend image update reaches production only after the normal versioned release and deployment PR.
 
 CI, manual E2E runs, and manual releases read `.node-version`; the frontend Docker build pins the
 same version in `frontend/Dockerfile`. Update both pins and `frontend/package.json`'s `engines.node`
