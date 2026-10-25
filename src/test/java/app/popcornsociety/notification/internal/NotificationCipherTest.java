@@ -3,10 +3,14 @@ package app.popcornsociety.notification.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.encrypt.Encryptors;
 
 class NotificationCipherTest {
   private static final String FIRST_KEY = key((byte) 1);
@@ -17,6 +21,32 @@ class NotificationCipherTest {
           "test@example.com",
           "test",
           "https://example.com/reset?token=synthetic-secret");
+
+  @Test
+  void decryptsPayloadWrittenBySpringSecuritySevenOneZero() {
+    // Generated with Spring Security 7.1.0 and the synthetic FIRST_KEY, never a real secret.
+    byte[] payload =
+        Base64.getDecoder()
+            .decode(
+                "AAECAwQFBgcICQoLDA0OD9o7pf1EyOfloYlU7tJnwJvd+BRds+laYSUcfnZQC1FGcaInuETqzPG62UovTmLs2Ig2SNoAnxMQYnnObLR2aMKP+UVem3wNLB06LxUsM8EA60GBA5WPo7w1NU/juH/Sf3KyDr90O/FGTUckufgxlIcvHuTHR5nnGyPQJmPJ4O00W9LkQrcdQKcV2WFRCy7ysJrPO2SV3qCTuqMrEo9gtdojnYK4cjJ4CCZB7zFVN9Dee9prFDTBP0R8AcuvPpavLbhH37CzWYovHXeYrw6442/jDBXfx2jM96IRZA==");
+    var cipher = cipher("first", Map.of("first", FIRST_KEY));
+    assertThat(cipher.decrypt("first", "legacy-delivery", payload)).isEqualTo(MESSAGE);
+  }
+
+  @Test
+  @SuppressWarnings("deprecation") // Independent legacy reader proves rollback compatibility.
+  void newPayloadsRemainReadableByThePreUpgradeCipher() throws Exception {
+    byte[] payload = cipher("first", Map.of("first", FIRST_KEY)).encrypt("delivery", MESSAGE);
+    byte[] salt = Arrays.copyOfRange(payload, 0, 16);
+    byte[] plaintext =
+        Encryptors.stronger(FIRST_KEY, HexFormat.of().formatHex(salt))
+            .decrypt(Arrays.copyOfRange(payload, 16, payload.length));
+    var envelope = new ObjectMapper().readTree(new String(plaintext, StandardCharsets.UTF_8));
+    assertThat(envelope.get("version").intValue()).isEqualTo(1);
+    assertThat(envelope.get("deliveryId").textValue()).isEqualTo("delivery");
+    assertThat(new ObjectMapper().treeToValue(envelope.get("message"), NotificationMessage.class))
+        .isEqualTo(MESSAGE);
+  }
 
   @Test
   void encryptsWithFreshRandomnessAndAuthenticatesTheDeliveryIdentity() {

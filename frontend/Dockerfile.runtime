@@ -1,5 +1,7 @@
 FROM nginx:1.30-alpine
 
+RUN apk upgrade --no-cache
+
 RUN sed -i '/^user  /d; s!^pid .*;!pid /tmp/nginx.pid;!' /etc/nginx/nginx.conf
 
 COPY build /usr/share/nginx/html

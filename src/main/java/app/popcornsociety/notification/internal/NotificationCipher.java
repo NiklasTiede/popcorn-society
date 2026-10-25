@@ -2,11 +2,14 @@ package app.popcornsociety.notification.internal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.HexFormat;
-import org.springframework.security.crypto.encrypt.Encryptors;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import org.springframework.security.crypto.encrypt.AesGcmBytesEncryptor;
+import org.springframework.security.crypto.encrypt.BytesEncryptor;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -42,7 +45,7 @@ public class NotificationCipher {
       byte[] salt = new byte[SALT_BYTES];
       random.nextBytes(salt);
       byte[] encrypted =
-          Encryptors.stronger(properties.keys().get(activeKey()), HexFormat.of().formatHex(salt))
+          formatOneEncryptor(properties.keys().get(activeKey()), salt)
               .encrypt(mapper.writeValueAsBytes(new Envelope(1, deliveryId, message)));
       return ByteBuffer.allocate(salt.length + encrypted.length).put(salt).put(encrypted).array();
     } catch (Exception exception) {
@@ -58,7 +61,7 @@ public class NotificationCipher {
       }
       byte[] salt = Arrays.copyOfRange(payload, 0, SALT_BYTES);
       byte[] plaintext =
-          Encryptors.stronger(key, HexFormat.of().formatHex(salt))
+          formatOneEncryptor(key, salt)
               .decrypt(Arrays.copyOfRange(payload, SALT_BYTES, payload.length));
       Envelope envelope = mapper.readValue(plaintext, Envelope.class);
       if (envelope.version() != 1 || !deliveryId.equals(envelope.deliveryId())) {
@@ -67,6 +70,20 @@ public class NotificationCipher {
       return envelope.message();
     } catch (Exception exception) {
       throw new IllegalStateException("Notification payload cannot be decrypted or authenticated");
+    }
+  }
+
+  private static BytesEncryptor formatOneEncryptor(String secret, byte[] salt)
+      throws GeneralSecurityException {
+    // Format 1 uses a random 256-bit configuration secret, not a human password.
+    // Keep its derivation and GCM framing compatible with queued payloads and rollback readers.
+    PBEKeySpec specification = new PBEKeySpec(secret.toCharArray(), salt, 1024, 256);
+    try {
+      return AesGcmBytesEncryptor.withSecretKey(
+              SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1").generateSecret(specification))
+          .build();
+    } finally {
+      specification.clearPassword();
     }
   }
 
