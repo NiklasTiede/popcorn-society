@@ -1,5 +1,5 @@
 ---
-k3s_version: "v1.34.8+k3s1"
+k3s_version: "v1.34.12+k3s1"
 k3s_node_name: "homelab-um560"
 k3s_kubeconfig: "/etc/rancher/k3s/k3s.yaml"
 k3s_install_script_url: "https://get.k3s.io"
