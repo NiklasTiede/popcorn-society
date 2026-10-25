@@ -43,6 +43,9 @@ jobs:
 
   backend-build-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout repository
@@ -65,6 +68,12 @@ jobs:
 
       - name: Build backend runtime image
         run: make docker-build-backend-prebuilt
+
+      - name: Scan backend runtime image
+        uses: ./.github/actions/container-scan
+        with:
+          image: docker:popcorn-society-backend:local
+          category: container-build-backend
 
       - name: Smoke-test backend runtime image
         run: make container-smoke-backend
@@ -94,6 +103,9 @@ jobs:
 
   frontend-build-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     defaults:
       run:
         working-directory: frontend
@@ -139,6 +151,12 @@ jobs:
         working-directory: .
         run: make docker-build-frontend-prebuilt
 
+      - name: Scan frontend runtime image
+        uses: ./.github/actions/container-scan
+        with:
+          image: docker:popcorn-society-frontend:local
+          category: container-build-frontend
+
       - name: Smoke-test frontend runtime image
         working-directory: .
         run: make container-smoke-frontend
@@ -160,6 +178,9 @@ jobs:
 
   agent-build-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout repository
@@ -180,6 +201,12 @@ jobs:
 
       - name: Build agent image
         run: make docker-build-agent AGENT_APP_VERSION="$(tr -d '[:space:]' < VERSION)"
+
+      - name: Scan agent runtime image
+        uses: ./.github/actions/container-scan
+        with:
+          image: docker:popcorn-society-agent:local
+          category: container-build-agent
 
       - name: Smoke-test agent image
         run: make container-smoke-agent

@@ -76,14 +76,16 @@ assert_contract(
 )
 assert_contract(
   release_job.fetch("permissions") == {
-    "actions" => "read", "contents" => "write", "pull-requests" => "write"
+    "actions" => "read", "contents" => "write", "pull-requests" => "write",
+    "security-events" => "write"
   },
-  "release job must request only artifact-read, ref-write, and PR-write scopes"
+  "release job must request only artifact-read, ref-write, PR-write and SARIF-write scopes"
 )
 steps = release_job.fetch("steps")
 steps.select { |step| step.key?("uses") }.each do |step|
   assert_contract(
-    step.fetch("uses").match?(/\A[\w.-]+\/[\w.\/-]+@[0-9a-f]{40}\z/),
+    step.fetch("uses") == "./.github/actions/container-scan" ||
+      step.fetch("uses").match?(/\A[\w.-]+\/[\w.\/-]+@[0-9a-f]{40}\z/),
     "release actions must pin full immutable upstream commit SHAs: #{step.fetch("name")}"
   )
 end
@@ -160,7 +162,9 @@ assert_contract(
   Install\ uv\ and\ Python\ 3.14
   Install\ locked\ agent\ dependencies
   Verify\ agent
-  Build\ manual\ release\ images
+  Build\ manual\ backend\ image
+  Build\ manual\ frontend\ image
+  Build\ manual\ agent\ image
   Smoke-test\ manual\ release\ images
 ].each do |escaped_name|
   step_name = escaped_name.tr("\\", "")
