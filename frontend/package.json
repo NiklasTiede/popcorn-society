@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": "^24.22.1 || ^26.12.1"
+  },
   "scripts": {
     "start": "vite",
     "preview": "vite preview --host localhost --port 3000",

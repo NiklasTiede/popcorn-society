@@ -253,7 +253,7 @@ Operator access and troubleshooting are documented in the
 
 - Java 25
 - Docker with Compose
-- Node.js 24 and Yarn
+- Node.js 24.22.1 LTS (see `.node-version`) and Yarn
 - Python 3.14 and uv for the Movie Concierge
 - Make
 
