@@ -58,8 +58,8 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v6
         with:
-          java-version: "25"
-          distribution: temurin
+          java-version-file: .java-version
+          distribution: corretto
           cache: gradle
 
       - name: Set up Node.js

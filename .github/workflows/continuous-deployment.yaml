@@ -73,8 +73,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
-          java-version: "25"
-          distribution: temurin
+          java-version-file: .java-version
+          distribution: corretto
 
       - name: Set up Gradle
         if: github.event_name == 'workflow_dispatch'
