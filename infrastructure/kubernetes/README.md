@@ -30,6 +30,40 @@ kubectl get pods -A
 kubectl get applications -n argocd
 ```
 
+## Existing-server patch upgrades
+
+The Ansible pin is `v1.34.12+k3s1`. Changing that pin or merging this repository does not upgrade
+the running server. For a scheduled patch upgrade of the existing single-node SQLite cluster,
+use the dedicated maintenance playbook instead of rerunning the complete bootstrap:
+
+```bash
+cd infrastructure/ansible
+ansible-playbook upgrade-k3s.yml --syntax-check
+ansible-playbook upgrade-k3s.yml --ask-become-pass \
+  --ssh-common-args='-o UseKeychain=yes -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519'
+```
+
+Enter the server's sudo password only at the local terminal prompt. The playbook downloads the
+pinned binary and verifies its upstream SHA-256 checksum before stopping the control plane. It
+then saves a consistent offline copy of the SQLite datastore, server token, k3s configuration,
+systemd unit/environment, and previous executable under a root-only `/var/backups/k3s-upgrade-*`
+directory. The archive has mode `0600`; do not copy or print its token or kubeconfig contents.
+
+Only the k3s executable is replaced. Existing service arguments remain intact. An `always` block
+attempts to restart k3s if backup or replacement fails, and successful runs verify the pinned
+version, node readiness, and all three application deployments. Repeated runs at the target
+version skip the backup and restart. The playbook rejects downgrades, minor-version jumps,
+embedded etcd, and external datastores. It requires the running k3s process to hold the default
+SQLite database open, so a leftover database file cannot falsely identify an external datastore
+or a custom data directory as the supported setup.
+
+Allow a maintenance window: workloads normally continue during the control-plane restart, but
+the Kubernetes API is temporarily unavailable and bundled Traefik/chart updates can affect ingress.
+Review the [release notes](https://docs.k3s.io/release-notes/v1.34.X), then verify Argo CD health
+and the public frontend after the playbook. The server token must accompany any datastore restore;
+restore only during a deliberate recovery operation. This control-plane archive does not back up
+application PostgreSQL data or other PVC contents.
+
 Open Argo CD privately through SSH port-forwarding:
 
 ```bash

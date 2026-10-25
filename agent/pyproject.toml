@@ -49,6 +49,7 @@ packages = ["src/popcorn_society_agent"]
 constraint-dependencies = [
     "aiohttp>=3.14.4",
     "certifi>=2026.10.19",
+    "fastmcp-slim>=3.4.10,<4",
     "mcp>=1.30.0",
 ]
 

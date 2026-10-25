@@ -1,0 +1,206 @@
+---
+- name: Upgrade the existing single-node SQLite k3s server
+  hosts: homelab
+  become: true
+  gather_facts: true
+  vars:
+    k3s_upgrade_assets:
+      x86_64:
+        binary: k3s
+        checksums: sha256sum-amd64.txt
+      aarch64:
+        binary: k3s-arm64
+        checksums: sha256sum-arm64.txt
+    k3s_upgrade_release_url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version | urlencode }}"
+
+  tasks:
+    - name: Check upgrade prerequisites
+      ansible.builtin.assert:
+        that:
+          - not ansible_check_mode
+          - groups['homelab'] | length == 1
+          - ansible_facts['architecture'] in k3s_upgrade_assets
+        fail_msg: "This maintenance playbook needs one existing server and a real run. Use --syntax-check for offline validation."
+
+    - name: Read installed k3s version
+      ansible.builtin.command: /usr/local/bin/k3s --version
+      register: k3s_upgrade_current
+      changed_when: false
+
+    - name: Record installed release
+      ansible.builtin.set_fact:
+        k3s_upgrade_from: "{{ k3s_upgrade_current.stdout_lines[0].split()[2] }}"
+
+    - name: Require stable k3s release identifiers
+      ansible.builtin.assert:
+        that:
+          - k3s_version is match('^v[0-9]+[.][0-9]+[.][0-9]+[+]k3s[0-9]+$')
+          - k3s_upgrade_from is match('^v[0-9]+[.][0-9]+[.][0-9]+[+]k3s[0-9]+$')
+
+    - name: Reject minor-version jumps and downgrades
+      # SemVer ignores +k3sN metadata; loose comparison retains revision ordering.
+      ansible.builtin.assert:
+        that:
+          - k3s_version.split('.')[0:2] == k3s_upgrade_from.split('.')[0:2]
+          - >-
+            (k3s_version | regex_replace('^v', '')) is
+            version(k3s_upgrade_from | regex_replace('^v', ''), '>=', version_type='loose')
+        fail_msg: "This playbook supports forward patch upgrades within the installed minor release only."
+
+    - name: Back up and upgrade only when the pinned release differs
+      when: k3s_upgrade_from != k3s_version
+      block:
+        - name: Check SQLite datastore
+          ansible.builtin.stat:
+            path: /var/lib/rancher/k3s/server/db/state.db
+          register: k3s_upgrade_sqlite
+
+        - name: Check for embedded etcd
+          ansible.builtin.stat:
+            path: /var/lib/rancher/k3s/server/db/etcd
+          register: k3s_upgrade_etcd
+
+        - name: Require the documented SQLite datastore
+          ansible.builtin.assert:
+            that:
+              - k3s_upgrade_sqlite.stat.isreg | default(false)
+              - not k3s_upgrade_etcd.stat.exists
+            fail_msg: "Use the datastore-specific backup procedure for an etcd or external-database cluster."
+
+        - name: Create private upgrade and backup directory
+          ansible.builtin.tempfile:
+            state: directory
+            path: /var/backups
+            prefix: k3s-upgrade-
+          register: k3s_upgrade_backup
+
+        - name: Download and verify the pinned binary before stopping k3s
+          ansible.builtin.get_url:
+            url: "{{ k3s_upgrade_release_url }}/{{ k3s_upgrade_assets[ansible_facts['architecture']].binary }}"
+            dest: "{{ k3s_upgrade_backup.path }}/{{ k3s_upgrade_assets[ansible_facts['architecture']].binary }}"
+            checksum: "sha256:{{ k3s_upgrade_release_url }}/{{ k3s_upgrade_assets[ansible_facts['architecture']].checksums }}"
+            owner: root
+            group: root
+            mode: "0755"
+            timeout: 120
+
+        - name: Verify downloaded executable version
+          ansible.builtin.command:
+            argv:
+              - "{{ k3s_upgrade_backup.path }}/{{ k3s_upgrade_assets[ansible_facts['architecture']].binary }}"
+              - --version
+          register: k3s_upgrade_downloaded
+          changed_when: false
+          failed_when: >-
+            k3s_upgrade_downloaded.rc != 0 or
+            k3s_upgrade_downloaded.stdout_lines[0].split()[2] != k3s_version
+
+        - name: Read the running k3s server process ID
+          ansible.builtin.command:
+            argv:
+              - systemctl
+              - show
+              - k3s
+              - --property=MainPID
+              - --value
+          register: k3s_upgrade_pid
+          changed_when: false
+
+        - name: Require the running server to use the default SQLite datastore
+          ansible.builtin.shell: |
+            for descriptor in /proc/{{ k3s_upgrade_pid.stdout | int }}/fd/*; do
+              if test "$descriptor" -ef /var/lib/rancher/k3s/server/db/state.db; then
+                exit 0
+              fi
+            done
+            exit 1
+          args:
+            executable: /bin/bash
+          changed_when: false
+
+        - name: Perform offline backup and binary replacement
+          block:
+            - name: Stop the control plane for a consistent SQLite backup
+              ansible.builtin.systemd_service:
+                name: k3s
+                state: stopped
+
+            - name: Archive datastore token configuration and previous executable
+              ansible.builtin.command:
+                argv:
+                  - tar
+                  - --create
+                  - --gzip
+                  - "--file={{ k3s_upgrade_backup.path }}/before-upgrade.tar.gz"
+                  - --directory=/
+                  - var/lib/rancher/k3s/server/db
+                  - var/lib/rancher/k3s/server/token
+                  - etc/rancher/k3s
+                  - etc/systemd/system/k3s.service
+                  - etc/systemd/system/k3s.service.env
+                  - usr/local/bin/k3s
+              changed_when: true
+
+            - name: Protect the backup archive
+              ansible.builtin.file:
+                path: "{{ k3s_upgrade_backup.path }}/before-upgrade.tar.gz"
+                owner: root
+                group: root
+                mode: "0600"
+
+            - name: Report recovery archive location without exposing its contents
+              ansible.builtin.debug:
+                msg: "Offline k3s backup: {{ k3s_upgrade_backup.path }}/before-upgrade.tar.gz"
+
+            - name: Replace only the verified k3s executable
+              ansible.builtin.copy:
+                src: "{{ k3s_upgrade_backup.path }}/{{ k3s_upgrade_assets[ansible_facts['architecture']].binary }}"
+                dest: /usr/local/bin/k3s
+                remote_src: true
+                owner: root
+                group: root
+                mode: "0755"
+          always:
+            - name: Start k3s even when backup or replacement fails
+              ansible.builtin.systemd_service:
+                name: k3s
+                state: started
+
+    - name: Wait for the Kubernetes node to be Ready
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/kubectl
+          - wait
+          - --for=condition=Ready
+          - "node/{{ k3s_node_name }}"
+          - --timeout=180s
+      environment:
+        KUBECONFIG: "{{ k3s_kubeconfig }}"
+      register: k3s_upgrade_ready
+      retries: 6
+      delay: 10
+      until: k3s_upgrade_ready.rc == 0
+      changed_when: false
+
+    - name: Confirm installed release
+      ansible.builtin.command: /usr/local/bin/k3s --version
+      register: k3s_upgrade_result
+      changed_when: false
+      failed_when: k3s_upgrade_result.stdout_lines[0].split()[2] != k3s_version
+
+    - name: Verify application deployments recover
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/kubectl
+          - --namespace=imdb-clone
+          - rollout
+          - status
+          - "deployment/{{ item }}"
+          - --timeout=180s
+      environment:
+        KUBECONFIG: "{{ k3s_kubeconfig }}"
+      changed_when: false
+      loop:
+        - imdb-clone-backend
+        - imdb-clone-frontend
+        - imdb-clone-agent
