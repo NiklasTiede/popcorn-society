@@ -24,11 +24,12 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
-    # Artifact downloads, deployment refs, and the deployment PR need these scopes.
+    # Artifact downloads, manual build SARIF, deployment refs and PR need these scopes.
     permissions:
       actions: read
       contents: write
       pull-requests: write
+      security-events: write
 
     steps:
       - name: Checkout code
@@ -133,12 +134,41 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: make verify-agent
 
-      - name: Build manual release images
+      - name: Build manual backend image
         if: github.event_name == 'workflow_dispatch'
-        run: |
-          make docker-build-backend-prebuilt
-          make docker-build-frontend-prebuilt
-          make docker-build-agent AGENT_APP_VERSION="${{ steps.version.outputs.value }}"
+        id: build-backend-image
+        run: make docker-build-backend-prebuilt
+
+      - name: Scan manual backend image
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && steps.build-backend-image.outcome == 'success' }}
+        uses: ./.github/actions/container-scan
+        with:
+          image: docker:popcorn-society-backend:local
+          category: container-build-backend
+
+      - name: Build manual frontend image
+        if: github.event_name == 'workflow_dispatch'
+        id: build-frontend-image
+        run: make docker-build-frontend-prebuilt
+
+      - name: Scan manual frontend image
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && steps.build-frontend-image.outcome == 'success' }}
+        uses: ./.github/actions/container-scan
+        with:
+          image: docker:popcorn-society-frontend:local
+          category: container-build-frontend
+
+      - name: Build manual agent image
+        if: github.event_name == 'workflow_dispatch'
+        id: build-agent-image
+        run: make docker-build-agent AGENT_APP_VERSION="${{ steps.version.outputs.value }}"
+
+      - name: Scan manual agent image
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && steps.build-agent-image.outcome == 'success' }}
+        uses: ./.github/actions/container-scan
+        with:
+          image: docker:popcorn-society-agent:local
+          category: container-build-agent
 
       - name: Smoke-test manual release images
         if: github.event_name == 'workflow_dispatch'

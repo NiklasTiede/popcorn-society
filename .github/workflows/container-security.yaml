@@ -1,0 +1,76 @@
+name: Security - Production container images
+
+on:
+  schedule:
+    # Daily tick; the selector scans every third UTC day, including month boundaries.
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - infrastructure/clusters/home/apps/backend.yaml
+      - infrastructure/clusters/home/apps/frontend.yaml
+      - infrastructure/clusters/home/apps/agent.yaml
+      - .github/actions/container-scan/**
+      - .github/workflows/container-security.yaml
+      - scripts/container-scan-targets.py
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/actions/container-scan/**
+      - .github/workflows/container-security.yaml
+      - scripts/container-scan-targets.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  targets:
+    runs-on: ubuntu-latest
+    outputs:
+      scan: ${{ steps.targets.outputs.scan }}
+      matrix: ${{ steps.targets.outputs.matrix }}
+    steps:
+      - name: Checkout GitOps image references
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select production images and scan day
+        id: targets
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          args=()
+          if [[ "$EVENT_NAME" == 'schedule' ]]; then
+            args+=(--scheduled)
+          fi
+          python3 scripts/container-scan-targets.py "${args[@]}" >> "$GITHUB_OUTPUT"
+
+  production-images:
+    needs: targets
+    if: needs.targets.outputs.scan == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    steps:
+      - name: Checkout scanner action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Scan production image by digest
+        uses: ./.github/actions/container-scan
+        with:
+          image: ${{ matrix.image }}
+          category: container-production-${{ matrix.service }}

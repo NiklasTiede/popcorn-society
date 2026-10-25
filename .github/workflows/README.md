@@ -39,6 +39,46 @@ Concierge browser behavior uses deterministic intercepted SSE responses there; t
 covered by its Python contract tests and container smoke test. Live model evals remain explicitly
 opt-in and never receive credentials in ordinary CI.
 
+## Container vulnerability scans
+
+Every backend, frontend and Movie Concierge image built in CI is scanned with Grype before
+exporting the verified image artifact. Manual CD builds use the same local composite action before
+publication. Automatic CD promotes the already-scanned artifacts without rebuilding them.
+
+The `Security - Production container images` workflow rescans the three production app images every
+three UTC days. Its daily 04:17 UTC cron tick uses an epoch-day modulo-three gate, preserving the
+interval across month/year boundaries; off days skip the scan jobs. GitHub's scheduler is best effort.
+Merging app image-reference or scanner configuration changes also triggers a scan immediately.
+Scanner PRs exercise the production scan path, and **Actions → Security - Production container
+images → Run workflow** provides an on-demand scan without waiting for the scheduled day.
+
+Production targets come from `backend.yaml`, `frontend.yaml` and `agent.yaml` under
+`infrastructure/clusters/home/apps`. The selector requires the service's version tag and immutable
+SHA-256 digest, then reads the image directly from Docker Hub without running it. This checks the
+GitOps desired production versions; it does not query the live cluster or prove Argo CD has finished
+deploying them. Infrastructure and seed images are outside this app-image scan scope.
+
+Findings appear under **Security → Code scanning**, tool **Grype**, in stable categories
+`container-build-{backend,frontend,agent}` and `container-production-{backend,frontend,agent}`.
+Separate categories prevent an unmerged build from replacing production findings. SARIF reports are
+also retained as workflow artifacts for 14 days. Fork PRs scan and keep the report artifact but skip
+the privileged Security upload. No `pull_request_target` workflow or registry secret is needed.
+
+The scanner covers supported OS and application packages in the final runtime image. It reports all
+severities and findings without a published fix; a finding is a triage candidate, not proof of an
+exploitable application path. Findings alone do not fail the build or update/deploy anything.
+Scanner, vulnerability database update, registry and upload errors still fail visibly. The action
+refreshes its vulnerability database on every run, even when the database cache is restored.
+
+External scan/report actions are pinned to full commit SHAs, with Grype pinned separately in
+`.github/actions/container-scan/action.yml`. Dependabot tracks the action pins; scanner version bumps
+need a reviewed change to that file. `make verify-release-workflows` checks scan wiring and the
+production selector's cadence and digest validation.
+
+See the upstream [Grype documentation](https://github.com/anchore/grype),
+[scan action](https://github.com/anchore/scan-action) and
+[SARIF integration](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github).
+
 ## Version-gated application releases
 
 `VERSION` is the shared backend/frontend/agent release version. A semantic-version change on
@@ -65,8 +105,9 @@ one manual approval from a user with write access. No personal access token or p
 bypass is required.
 
 The workflow defaults to `contents: read`. Only the release job receives `actions: read` (verified
-image artifact downloads), `contents: write` (deployment branch and release tag), and
-`pull-requests: write` (deployment PR). Checkout uses `persist-credentials: false`; the two Git
+image artifact downloads), `contents: write` (deployment branch and release tag),
+`pull-requests: write` (deployment PR), and `security-events: write` (manual build SARIF uploads).
+Checkout uses `persist-credentials: false`; the two Git
 push steps supply a transient credential helper through process environment only. Build and
 validation steps therefore have no persisted checkout credentials. The release job still has
 write-capable `GITHUB_TOKEN` permissions, and Docker publishing still uses the existing
