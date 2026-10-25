@@ -578,6 +578,16 @@ make container-smoke-frontend
 ```
 
 The frontend Dockerfile installs Java because `openapi-generator-cli` runs during the image build.
+Both frontend runtime stages apply `apk upgrade --no-cache`: upstream Nginx image rebuilds can lag
+behind Alpine security fixes. For a deliberate security rebuild, refresh the base and rerun package
+installation rather than reusing an old Docker layer:
+
+```bash
+docker build --pull --no-cache --platform linux/amd64 -t popcorn-society-frontend:local frontend
+```
+
+For prebuilt frontend assets, add `-f frontend/Dockerfile.runtime` to that command. Normal GitHub
+builds use fresh hosted runners; the automatic release promotes the verified image without rebuilding.
 Backend and frontend runtime images use numeric non-root users and support a read-only root
 filesystem. Their smoke tests run with dropped Linux capabilities and exercise the same HTTP health
 paths used by Kubernetes; the backend smoke also starts the Pyroscope Java agent.
@@ -715,6 +725,14 @@ For rotation, add a new named entry under `popcorn-society.notification.outbox.k
 entry, and change `active-key` to the new name. Pending rows carry their key ID. Remove an old key
 only after no PENDING rows reference it. Ciphertext cannot be recovered if its key is lost.
 All replicas must receive both keys before any replica begins writing with the new one.
+
+Notification payload format 1 preserves the original salt, PBKDF2 derivation and AES-GCM framing.
+The cipher uses Spring Security's `AesGcmBytesEncryptor.withSecretKey` API with the format's existing
+key derivation from the required random 32-byte configuration secret. Do not replace it directly
+with `withPassword`: that factory uses different derivation parameters and cannot read existing
+queued messages. Any future format change needs an explicit compatibility/migration design.
+Regression tests cover a Spring Security 7.1.0 ciphertext fixture and old-reader compatibility for
+newly written payloads; upgrading Spring Boot does not require re-encrypting the outbox.
 
 The `notification-delivery` db-scheduler task polls every five seconds. SMTP failures retain encrypted
 work and retry after one minute, until the link's original expiry. The worker never extends token
