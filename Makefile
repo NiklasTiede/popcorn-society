@@ -340,6 +340,8 @@ verify-popcorn-migration: ## validate the staged Popcorn Society domain migratio
 verify-release-workflows: ## verify protected-branch CI and release PR contracts
 	ruby infrastructure/clusters/home/tests/verify_release_workflows.rb
 	python3 -m unittest discover -s scripts/tests -p 'test_release_manifests.py'
+	ruby infrastructure/clusters/home/tests/verify_container_scans.rb
+	python3 -m unittest discover -s scripts/tests -p 'test_container_scan_targets.py'
 
 verify-kubernetes-render: check-kubernetes-verification-tools ## render home-cluster Kubernetes manifests
 	kubectl kustomize infrastructure/clusters/home/apps > $(K8S_RENDER_OUTPUT)

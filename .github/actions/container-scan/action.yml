@@ -1,0 +1,56 @@
+name: Scan container image
+description: Report Grype findings in GitHub Security without changing the image
+inputs:
+  image:
+    description: 'Explicit docker: or registry: image reference'
+    required: true
+  category:
+    description: Stable SARIF category and artifact name per scan target
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Scan OS and application packages
+      id: scan
+      uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+      env:
+        GRYPE_CHECK_FOR_APP_UPDATE: 'false'
+        GRYPE_DB_AUTO_UPDATE: 'true'
+        GRYPE_DB_VALIDATE_AGE: 'true'
+        GRYPE_DB_REQUIRE_UPDATE_CHECK: 'true'
+      with:
+        image: ${{ inputs.image }}
+        grype-version: '0.121.0'
+        output-format: sarif
+        fail-build: 'false'
+        only-fixed: 'false'
+        cache-db: 'true'
+
+    - name: Preserve scan report
+      if: ${{ !cancelled() && steps.scan.outputs.sarif != '' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+      with:
+        name: ${{ inputs.category }}
+        path: ${{ steps.scan.outputs.sarif }}
+        if-no-files-found: error
+        retention-days: 14
+
+    - name: Publish findings to GitHub Security
+      # Fork PR tokens cannot write security events. Keep their artifact instead;
+      # never use pull_request_target to execute an untrusted build with write access.
+      if: ${{ !cancelled() && steps.scan.outputs.sarif != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+      uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+      with:
+        sarif_file: ${{ steps.scan.outputs.sarif }}
+        category: ${{ inputs.category }}
+        wait-for-processing: true
+
+    - name: Record scanned image
+      if: ${{ !cancelled() && steps.scan.outputs.sarif != '' }}
+      shell: bash
+      env:
+        SCAN_IMAGE: ${{ inputs.image }}
+        SCAN_CATEGORY: ${{ inputs.category }}
+      run: |
+        printf '### %s\n\nImage: `%s`\n\nFindings are reported without automatic updates. See Security → Code scanning and the SARIF artifact.\n' \
+          "$SCAN_CATEGORY" "$SCAN_IMAGE" >> "$GITHUB_STEP_SUMMARY"
