@@ -20,7 +20,7 @@ runs:
         GRYPE_DB_REQUIRE_UPDATE_CHECK: 'true'
       with:
         image: ${{ inputs.image }}
-        grype-version: '0.121.0'
+        grype-version: 'v0.121.0'
         output-format: sarif
         fail-build: 'false'
         only-fixed: 'false'

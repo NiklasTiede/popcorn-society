@@ -46,7 +46,7 @@ scan = scan_steps.find { |step| step.fetch("uses", "").start_with?("anchore/scan
 check(scan.dig("with", "fail-build") == "false", "findings must be reported without silently gating releases")
 check(scan.dig("with", "only-fixed") == "false", "include findings without a published fix")
 check(scan.dig("with", "output-format") == "sarif", "GitHub Security needs SARIF")
-check(scan.dig("with", "grype-version").match?(/\A\d+\.\d+\.\d+\z/), "pin the scanner version")
+check(scan.dig("with", "grype-version").match?(/\Av\d+\.\d+\.\d+\z/), "pin the scanner to a published v-prefixed release tag, including its installer")
 check(scan.dig("env", "GRYPE_DB_REQUIRE_UPDATE_CHECK") == "true", "database update failures must remain visible")
 check(scan_steps.none? { |step| step.key?("continue-on-error") }, "scanner and upload errors must not be swallowed")
 upload = scan_steps.find { |step| step.fetch("uses", "").start_with?("github/codeql-action/upload-sarif@") }
