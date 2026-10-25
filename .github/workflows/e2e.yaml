@@ -59,7 +59,7 @@ jobs:
         uses: actions/setup-java@v6
         with:
           java-version-file: .java-version
-          distribution: temurin
+          distribution: corretto
           cache: gradle
 
       - name: Set up Node.js

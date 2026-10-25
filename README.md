@@ -251,7 +251,7 @@ Operator access and troubleshooting are documented in the
 
 ### Prerequisites
 
-- Java 25.0.5 (see `.java-version`)
+- Java 25.0.5, Amazon Corretto (see `.java-version`)
 - Docker with Compose
 - Node.js 24.22.1 LTS (see `.node-version`) and Yarn
 - Python 3.14 and uv for the Movie Concierge

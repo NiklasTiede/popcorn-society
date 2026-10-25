@@ -1,13 +1,13 @@
 # Use a multi-stage build to generate the JAR file and then package it into the Docker image
-FROM eclipse-temurin:25.0.5_8-jdk-alpine AS build
+FROM amazoncorretto:25.0.5-alpine3.24 AS build
 WORKDIR /app
 COPY build.gradle settings.gradle gradle.properties gradle.lockfile gradlew ./
 COPY gradle ./gradle
 COPY src ./src
 RUN ./gradlew bootJar copyPyroscopeAgent --no-daemon --no-watch-fs
 
-# Keep JDK and JRE versions aligned and run the application as an unprivileged user.
-FROM eclipse-temurin:25.0.5_8-jre-alpine
+# Use the same patched Java distribution for build and runtime.
+FROM amazoncorretto:25.0.5-alpine3.24
 ARG JAR_FILE=/app/build/libs/*.jar
 RUN addgroup -S -g 10001 popcorn \
     && adduser -S -D -H -u 10001 -G popcorn popcorn

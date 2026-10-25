@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25.0.5_8-jre-alpine
+FROM amazoncorretto:25.0.5-alpine3.24
 
 RUN addgroup -S -g 10001 popcorn \
     && adduser -S -D -H -u 10001 -G popcorn popcorn
