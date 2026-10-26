@@ -210,14 +210,37 @@ async def test_interruption_cancels_without_unsupported_truncation() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("scenario", "message"),
-    [("timeout", "voice_session_timeout"), ("oversize", "output_audio_limit_exceeded")],
-)
-async def test_limits_close_the_connection(scenario: str, message: str) -> None:
-    model = ScriptedModel(scenario)
-    with pytest.raises(VoiceProbeError, match=message):
-        await run_voice_probe(model, b"\x00" * BYTES_PER_SECOND, ProbeOptions(session_seconds=0.1))
+async def test_timeout_closes_the_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = ScriptedModel("timeout")
+    real_timeout = asyncio.timeout
+    deadline = real_timeout(None)
+
+    def controlled_timeout(delay: float | None) -> asyncio.Timeout:
+        return deadline if delay == 0.1 else real_timeout(delay)
+
+    monkeypatch.setattr(asyncio, "timeout", controlled_timeout)
+    async with real_timeout(5):
+        task = asyncio.create_task(
+            run_voice_probe(model, b"\x00" * BYTES_PER_SECOND, ProbeOptions(session_seconds=0.1))
+        )
+        try:
+            # Expire an established session, independently of provider setup speed.
+            await model.connection.response_requested.wait()
+            deadline.reschedule(asyncio.get_running_loop().time())
+            with pytest.raises(VoiceProbeError, match="voice_session_timeout"):
+                await task
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+    assert model.connection.closed
+
+
+@pytest.mark.asyncio
+async def test_output_audio_limit_closes_the_connection() -> None:
+    model = ScriptedModel("oversize")
+    async with asyncio.timeout(5):
+        with pytest.raises(VoiceProbeError, match="output_audio_limit_exceeded"):
+            await run_voice_probe(model, b"\x00" * BYTES_PER_SECOND, ProbeOptions())
     assert model.connection.closed
 
 

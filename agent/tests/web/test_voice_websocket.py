@@ -573,6 +573,10 @@ def test_provider_timeout_is_not_reported_as_session_expiry(
             assert ws.receive_json()["type"] == "ready"
         event = ws.receive_json()
         assert event["text"] == "Voice connection timed out. Please reconnect."
+        # Wait for quota settlement and logging before TestClient cancels the handler.
+        with pytest.raises(WebSocketDisconnect) as closed:
+            ws.receive_json()
+        assert closed.value.code == 1000
     logs = capsys.readouterr().out
     assert "synthetic-private" not in logs
     events = [json.loads(line) for line in logs.splitlines()]
