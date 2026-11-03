@@ -52,7 +52,9 @@ constraint-dependencies = [
     "certifi>=2026.10.19",
     "dnspython>=2.9.0",
     "fastmcp-slim>=3.4.10,<4",
+    "joserfc>=1.7.6",
     "mcp>=1.30.0",
+    "pyasn1>=0.6.5",
 ]
 
 [tool.ruff]
