@@ -90,10 +90,9 @@ yarn-error.log*
 
 # agentic configs
 .codex/*
-!.codex/skills/
-.codex/skills/*
-!.codex/skills/architecture-guardian/
-!.codex/skills/architecture-guardian/**
+!.codex/config.toml
+.agents/*
+!.agents/skills/
 .playwright-mcp/
 .playwright-cli/
 .superpowers/

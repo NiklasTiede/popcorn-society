@@ -15,6 +15,26 @@ Related docs:
 - `../movie-concierge.md` - Movie Concierge product and architecture boundaries.
 - `../operations.md` - production access, observability, and incident workflow.
 
+## Codex Setup
+
+Shared skills live in `.agents/skills/` and are checked in with their references. Codex discovers
+them when working in this repository. The project frontend skill is named `popcorn-frontend-design`
+to distinguish it from generic user-installed design skills.
+
+The trusted project configuration in `.codex/config.toml` disables the generic `frontend-design`
+skill and the automatic Superpowers dispatcher (`using-superpowers`). Individual Superpowers and
+gstack workflows remain available, but are opt-in under the root `AGENTS.md`: use them when the user
+explicitly requests the plugin or workflow. Routine work follows the operating model below.
+
+Keep Context7 and OpenAI Docs MCP in user configuration; they need no additional project server.
+The unused project `caveman-shrink` server has been removed. If a task needs an additional server,
+choose a tested version and document its purpose before adding it. Never check credentials,
+absolute user paths, or app-managed browser runtime configuration into project settings.
+
+Reload Codex after changing project configuration or moving skills so the instruction chain and
+skill catalog are rebuilt. Personal plugin choices and model/reasoning settings remain in user
+configuration.
+
 ## Operating Model
 
 Use this loop for every non-trivial task:
@@ -97,7 +117,7 @@ Verification options:
 
 ```bash
 ./gradlew test --tests "app.popcornsociety.SomeTest"
-./gradlew test
+./gradlew test architectureTest
 ./gradlew integrationTest --tests "app.popcornsociety.SomeIntegrationTest"
 ./gradlew integrationTest
 ./gradlew spotlessApply
@@ -119,7 +139,7 @@ Before editing:
 
 - Read `../design.md` for visual-system rules.
 - Identify the feature slice under `frontend/src/features` or shared area under `frontend/src/shared`.
-- Inspect `frontend/src/theme.ts`, `frontend/src/theme.test.ts`, nearby components, route definitions,
+- Inspect `frontend/src/theme/`, `frontend/src/theme/theme.test.ts`, nearby components, route definitions,
   query wrappers, and generated-client wrappers.
 - Confirm whether the change is UI, design token, server state, auth/session behavior, routing, or
   generated API usage.
@@ -130,8 +150,8 @@ Implementation checklist:
 - Use `frontend/src/shared/api/moviesApi.ts` and generated models instead of ad hoc HTTP clients.
 - Keep feature-specific state and UI inside the feature slice.
 - Move reusable behavior to focused hooks or shared components only when it is genuinely shared.
-- Use `frontend/src/theme.ts` semantic tokens and shared layout/media primitives before adding local styles.
-- Update `frontend/src/theme.test.ts` when theme tokens or palette behavior change.
+- Use `frontend/src/theme/` semantic tokens and shared layout/media primitives before adding local styles.
+- Update `frontend/src/theme/theme.test.ts` when theme tokens or palette behavior change.
 - Add or update Vitest/React Testing Library tests for behavior changes.
 - Use Playwright for end-to-end route, auth, or responsive workflow changes when practical.
 
@@ -139,7 +159,7 @@ Verification options:
 
 ```bash
 cd frontend
-yarn test src/theme.test.ts
+yarn test src/theme/theme.test.ts
 yarn lint:fast
 yarn run lint
 yarn test
@@ -222,7 +242,7 @@ When reviewing agent changes, lead with findings before summary:
 - Are agent tests and evals deterministic without provider credentials or Java infrastructure?
 - Are API request and response shapes typed and validated?
 - Was generated code produced by the generator rather than edited manually?
-- Are frontend UI changes consistent with `docs/design.md`, `frontend/src/theme.ts`, and shared layout primitives?
+- Are frontend UI changes consistent with `docs/design.md`, `frontend/src/theme/`, and shared layout primitives?
 - Are migrations additive and owned by Flyway?
 - Are secrets, local credentials, and decrypted SOPS values absent from the diff and logs?
 - Are deployment changes limited to the intended namespace, image, service, ingress, or secret?
