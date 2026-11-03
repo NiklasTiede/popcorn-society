@@ -439,6 +439,9 @@ def test_provider_value_errors_and_output_limits_are_not_invalid_browser_message
         error = ws.receive_json()
         assert error["type"] == "error"
         assert ("audio limit" if output_limit else "connection failed") in error["text"]
+        # Let the server finish quota settlement and logging before the client exits.
+        with pytest.raises(WebSocketDisconnect):
+            ws.receive_json()
     logs = capsys.readouterr().out
     assert "synthetic-private" not in logs
     assert "synthetic-private" not in error["text"]
