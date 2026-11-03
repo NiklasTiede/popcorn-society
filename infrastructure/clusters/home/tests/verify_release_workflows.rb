@@ -82,6 +82,17 @@ assert_contract(
   "release job must request only artifact-read, ref-write, PR-write and SARIF-write scopes"
 )
 steps = release_job.fetch("steps")
+python_pin = File.read(File.join(repository_root, "agent/.python-version")).strip
+assert_contract(python_pin.match?(/\A\d+\.\d+\.\d+\z/), "Agent Python must pin an exact patch version")
+ci_agent_steps = YAML.load(ci).fetch("jobs").fetch("agent-build-test").fetch("steps")
+{ "CI" => ci_agent_steps, "manual release" => steps }.each do |workflow, workflow_steps|
+  uv_setup = workflow_steps.find { |step| step.fetch("uses", "").start_with?("astral-sh/setup-uv@") }
+  assert_contract(!uv_setup.nil?, "#{workflow} must set up uv")
+  assert_contract(
+    uv_setup.dig("with", "python-version").nil?,
+    "#{workflow} must honor agent/.python-version instead of overriding its patch pin"
+  )
+end
 steps.select { |step| step.key?("uses") }.each do |step|
   assert_contract(
     step.fetch("uses") == "./.github/actions/container-scan" ||
