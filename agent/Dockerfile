@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:0.11.14 AS uv
 
-FROM python:3.14-slim AS builder
+FROM python:3.14.10-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
@@ -13,7 +13,7 @@ COPY src ./src
 
 RUN uv sync --frozen --no-dev --no-editable --no-cache
 
-FROM python:3.14-slim AS runtime
+FROM python:3.14.10-slim AS runtime
 
 ARG APP_VERSION=0.1.0
 
