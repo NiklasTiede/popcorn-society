@@ -1,0 +1,10 @@
+# Shared project settings. Credentials, model preferences, and app-managed runtimes stay in user config.
+# Individual Superpowers/gstack workflows are opt-in under AGENTS.md.
+[[skills.config]]
+name = "using-superpowers"
+enabled = false
+
+# Use the checked-in popcorn-frontend-design skill for this application's existing design system.
+[[skills.config]]
+name = "frontend-design"
+enabled = false

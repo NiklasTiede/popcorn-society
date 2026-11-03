@@ -63,8 +63,8 @@ If the user does not specify a mode, default to `quick`. If they name a concern,
    read `agent/AGENTS.md` and `docs/adr/0001-movie-concierge-architecture.md`. Prefer `rg`, `find`,
    `sed`, build metadata, and existing tests.
 4. Run narrow non-mutating checks when they add confidence. Examples:
-   - `./gradlew test --tests "app.popcornsociety.integration.repository.DatabaseSchemaTest"`
-   - `./gradlew test --tests "app.popcornsociety.ModulithArchitectureTest"`
+   - `./gradlew integrationTest --tests "app.popcornsociety.shared.DatabaseSchemaTest"`
+   - `./gradlew architectureTest`
    - `./gradlew test`
    - `cd frontend && yarn run lint`
    - `cd frontend && yarn test frontendArchitecture.test.ts`
@@ -81,7 +81,9 @@ If the user does not specify a mode, default to `quick`. If they name a concern,
 
 ## Subagents
 
-Use subagents only when the user explicitly asks for parallel/delegated review or when the active environment permits it. For `full` mode, dispatch at most one read-only specialist per independent surface:
+Use subagents only when the user explicitly asks for parallel/delegated review and delegation is
+available. For `full` mode, use at most one read-only specialist per independent surface and respect
+the environment's concurrency limit:
 
 - Persistence specialist
 - Backend Modulith specialist

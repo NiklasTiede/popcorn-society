@@ -98,7 +98,7 @@ For each module:
 Prefer the existing hard check:
 
 ```bash
-./gradlew test --tests "app.popcornsociety.ModulithArchitectureTest"
+./gradlew architectureTest
 ```
 
 It should verify the discovered modules, allowed dependency declarations, named-interface conventions, and selected repo-specific dependency rules.

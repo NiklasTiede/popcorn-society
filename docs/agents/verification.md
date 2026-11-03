@@ -55,7 +55,7 @@ Run from `frontend`.
 | Full Oxlint and ESLint gate | `yarn run lint` |
 | Tests once | `yarn test` |
 | Production build | `yarn build` |
-| Theme token test | `yarn test src/theme.test.ts` |
+| Theme token test | `yarn test src/theme/theme.test.ts` |
 | Playwright e2e | `yarn e2e` |
 
 Notes:

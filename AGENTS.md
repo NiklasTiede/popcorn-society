@@ -70,7 +70,8 @@ convention with the `branch-name` job.
 - `infrastructure/clusters/home/apps/` - k3s GitOps manifests rendered by Kustomize.
 - `scripts/cluster-access` - private SSH-backed production service tunnels and safe credential
   clipboard helpers.
-- `.codex/skills/` - Codex-specific reusable skills/tooling, not general project docs.
+- `.agents/skills/` - checked-in, project-specific skills and their supporting references.
+- `.codex/config.toml` - shared Codex project settings; keep credentials and personal settings out.
 - `docs/agents/` - detailed agent workflow and verification guidance.
 - `docs/assets/` - README/docs images.
 
@@ -131,7 +132,7 @@ make docker-compose-dev-down
 Verification:
 
 ```bash
-./gradlew test
+./gradlew test architectureTest
 ./gradlew integrationTest
 ./gradlew build jacocoTestReport
 cd frontend && yarn lint:fast
@@ -144,12 +145,25 @@ make verify-kubernetes-schema
 kubectl kustomize infrastructure/clusters/home/apps >/tmp/popcorn-society-home-apps.yaml
 ```
 
+Choose checks from `docs/agents/verification.md` for the changed ownership area; this list is not
+a requirement to run every deployable's full gate for every task.
+
 If backend API contracts change:
 
 ```bash
 ./gradlew bootRun
 cd frontend && yarn run updateOpenApiSpec && yarn run build:moviesGen
 ```
+
+## Skill Selection
+
+- Use task-specific skills when they add relevant guidance. For existing frontend work, use
+  `popcorn-frontend-design` and preserve `docs/design.md` and the existing theme.
+- Superpowers and gstack workflows are opt-in for this repository: invoke them only when the user
+  explicitly requests the plugin or a specific workflow. Ordinary tasks follow the inspect, plan,
+  implement, verify loop in `docs/agents/README.md` without additional workflow approval stages.
+- Keep shared skills under `.agents/skills/` and personal skills in user configuration. Avoid
+  duplicate skill names and references to tools that are unavailable in the current environment.
 
 ## Safety Rules
 
