@@ -17,7 +17,8 @@ RUN yarn run build:moviesGen \
 # Stage 2: Set up the Nginx server to serve the application
 FROM nginx:1.30-alpine
 # Base-image rebuilds can lag behind available Alpine security patches.
-RUN apk upgrade --no-cache
+RUN apk upgrade --no-cache \
+    && apk add --no-cache 'zlib>=1.4-r0' 'libxslt>=1.1.43-r4'
 # The official image already owns uid/gid 101 for nginx. Move every runtime
 # write into /tmp so Kubernetes can mount the root filesystem read-only.
 RUN sed -i '/^user  /d; s!^pid .*;!pid /tmp/nginx.pid;!' /etc/nginx/nginx.conf

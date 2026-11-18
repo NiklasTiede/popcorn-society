@@ -1,6 +1,7 @@
 FROM nginx:1.30-alpine
 
-RUN apk upgrade --no-cache
+RUN apk upgrade --no-cache \
+    && apk add --no-cache 'zlib>=1.4-r0' 'libxslt>=1.1.43-r4'
 
 RUN sed -i '/^user  /d; s!^pid .*;!pid /tmp/nginx.pid;!' /etc/nginx/nginx.conf
 

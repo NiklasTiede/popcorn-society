@@ -9,7 +9,8 @@ RUN ./gradlew bootJar copyPyroscopeAgent --no-daemon --no-watch-fs
 # Use the same patched Java distribution for build and runtime.
 FROM amazoncorretto:25.0.5-alpine3.24
 ARG JAR_FILE=/app/build/libs/*.jar
-RUN addgroup -S -g 10001 popcorn \
+RUN apk add --no-cache 'zlib>=1.4-r0' \
+    && addgroup -S -g 10001 popcorn \
     && adduser -S -D -H -u 10001 -G popcorn popcorn
 WORKDIR /app
 COPY --from=build --chown=10001:10001 ${JAR_FILE} app.jar
