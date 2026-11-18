@@ -24,12 +24,11 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
-    # Artifact downloads, manual build SARIF, deployment refs and PR need these scopes.
+    # Artifact downloads, deployment refs and the deployment PR need these scopes.
     permissions:
       actions: read
       contents: write
       pull-requests: write
-      security-events: write
 
     steps:
       - name: Checkout code

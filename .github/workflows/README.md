@@ -58,11 +58,12 @@ SHA-256 digest, then reads the image directly from Docker Hub without running it
 GitOps desired production versions; it does not query the live cluster or prove Argo CD has finished
 deploying them. Infrastructure and seed images are outside this app-image scan scope.
 
-Findings appear under **Security → Code scanning**, tool **Grype**, in stable categories
-`container-build-{backend,frontend,agent}` and `container-production-{backend,frontend,agent}`.
-Separate categories prevent an unmerged build from replacing production findings. SARIF reports are
-also retained as workflow artifacts for 14 days. Fork PRs scan and keep the report artifact but skip
-the privileged Security upload. No `pull_request_target` workflow or registry secret is needed.
+The default branch’s **Security → Code scanning** view shows production findings from Grype in
+`container-production-{backend,frontend,agent}`. Same-repository PRs can also publish
+`container-build-{backend,frontend,agent}` results for review. Push builds and manual release
+builds keep their build reports as SARIF artifacts without duplicating production alerts.
+All SARIF reports are retained as workflow artifacts for 14 days. Fork PRs scan and keep the
+report artifact. No `pull_request_target` workflow or registry secret is needed.
 
 The scanner covers supported OS and application packages in the final runtime image. It reports all
 severities and findings without a published fix; a finding is a triage candidate, not proof of an
@@ -106,7 +107,7 @@ bypass is required.
 
 The workflow defaults to `contents: read`. Only the release job receives `actions: read` (verified
 image artifact downloads), `contents: write` (deployment branch and release tag),
-`pull-requests: write` (deployment PR), and `security-events: write` (manual build SARIF uploads).
+`pull-requests: write` (deployment PR).
 Checkout uses `persist-credentials: false`; the two Git
 push steps supply a transient credential helper through process environment only. Build and
 validation steps therefore have no persisted checkout credentials. The release job still has

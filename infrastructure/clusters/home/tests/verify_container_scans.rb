@@ -38,7 +38,7 @@ smoke_index = steps.index { |step| step["name"] == "Smoke-test manual release im
   check(scan.dig("with", "image") == "docker:popcorn-society-#{service}:local", "manual releases must scan their exact built image")
   check(build_index && build_index < steps.index(scan) && steps.index(scan) < smoke_index && steps.index(scan) < publish_index, "scan each manual build before smoke tests or publication")
 end
-check(release_job.dig("permissions", "security-events") == "write", "manual release reports need SARIF upload permission")
+check(!release_job.fetch("permissions").key?("security-events"), "manual release reports are artifacts only")
 
 action = load_yaml.call(".github/actions/container-scan/action.yml")
 scan_steps = action.fetch("runs").fetch("steps")
@@ -51,6 +51,7 @@ check(scan.dig("env", "GRYPE_DB_REQUIRE_UPDATE_CHECK") == "true", "database upda
 check(scan_steps.none? { |step| step.key?("continue-on-error") }, "scanner and upload errors must not be swallowed")
 upload = scan_steps.find { |step| step.fetch("uses", "").start_with?("github/codeql-action/upload-sarif@") }
 check(upload.dig("with", "category") == "${{ inputs.category }}", "SARIF categories must distinguish all six scan targets")
+check(upload.fetch("if").include?("(startsWith(inputs.category, 'container-production-') || github.event_name == 'pull_request')"), "only production scans and PR scans publish findings")
 check(upload.fetch("if").include?("github.event.pull_request.head.repo.full_name == github.repository"), "fork PRs must not require privileged SARIF uploads")
 archive = scan_steps.find { |step| step.fetch("uses", "").start_with?("actions/upload-artifact@") }
 check(archive && archive.dig("with", "if-no-files-found") == "error", "retain reports, including for fork PRs")
