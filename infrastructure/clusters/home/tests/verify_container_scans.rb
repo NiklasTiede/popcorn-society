@@ -18,7 +18,7 @@ release = load_yaml.call(".github/workflows/continuous-deployment.yaml")
   check(!scan.nil?, "#{service} builds must scan their image")
   check(scan.dig("with", "image") == "docker:popcorn-society-#{service}:local", "scan the built local image, never a registry fallback")
   check(scan.dig("with", "category") == "container-build-#{service}", "build scan categories must be stable per service")
-  check(job["permissions"] == { "contents" => "read", "security-events" => "write" }, "build SARIF jobs need only source read and security event write")
+  check(job.fetch("permissions", ci.fetch("permissions")) == { "contents" => "read" }, "build scan jobs only need source read")
   steps = job.fetch("steps")
   build_index = steps.index { |step| step.fetch("run", "").include?("make docker-build-#{service}") }
   export_index = steps.index { |step| step.fetch("run", "").include?("docker save") }
@@ -45,14 +45,11 @@ scan_steps = action.fetch("runs").fetch("steps")
 scan = scan_steps.find { |step| step.fetch("uses", "").start_with?("anchore/scan-action@") }
 check(scan.dig("with", "fail-build") == "false", "findings must be reported without silently gating releases")
 check(scan.dig("with", "only-fixed") == "false", "include findings without a published fix")
-check(scan.dig("with", "output-format") == "sarif", "GitHub Security needs SARIF")
+check(scan.dig("with", "output-format") == "sarif", "preserve SARIF for offline triage")
 check(scan.dig("with", "grype-version").match?(/\Av\d+\.\d+\.\d+\z/), "pin the scanner to a published v-prefixed release tag, including its installer")
 check(scan.dig("env", "GRYPE_DB_REQUIRE_UPDATE_CHECK") == "true", "database update failures must remain visible")
 check(scan_steps.none? { |step| step.key?("continue-on-error") }, "scanner and upload errors must not be swallowed")
-upload = scan_steps.find { |step| step.fetch("uses", "").start_with?("github/codeql-action/upload-sarif@") }
-check(upload.dig("with", "category") == "${{ inputs.category }}", "SARIF categories must distinguish all six scan targets")
-check(upload.fetch("if").include?("(startsWith(inputs.category, 'container-production-') || github.event_name == 'pull_request')"), "only production scans and PR scans publish findings")
-check(upload.fetch("if").include?("github.event.pull_request.head.repo.full_name == github.repository"), "fork PRs must not require privileged SARIF uploads")
+check(scan_steps.none? { |step| step.fetch("uses", "").start_with?("github/codeql-action/upload-sarif@") }, "Grype reports must stay in Actions")
 archive = scan_steps.find { |step| step.fetch("uses", "").start_with?("actions/upload-artifact@") }
 check(archive && archive.dig("with", "if-no-files-found") == "error", "retain reports, including for fork PRs")
 
@@ -64,6 +61,7 @@ check(production["permissions"] == { "contents" => "read" }, "production scan de
 targets = production.fetch("jobs").fetch("targets")
 check(targets.fetch("steps").any? { |step| step.fetch("run", "").include?("--scheduled") }, "scheduled runs must use the three-day gate")
 prod_scan = production.fetch("jobs").fetch("production-images")
+check(prod_scan.fetch("permissions", production.fetch("permissions")) == { "contents" => "read" }, "production scan jobs only need source read")
 check(prod_scan.fetch("if").include?("needs.targets.outputs.scan == 'true'"), "skip the scan matrix on off days")
 check(prod_scan.dig("strategy", "fail-fast") == false, "one image failure must not cancel other image scans")
 prod_action = prod_scan.fetch("steps").find { |step| step["uses"] == "./.github/actions/container-scan" }
