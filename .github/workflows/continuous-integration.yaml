@@ -43,9 +43,6 @@ jobs:
 
   backend-build-test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
       - name: Checkout repository
@@ -103,9 +100,6 @@ jobs:
 
   frontend-build-test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
     defaults:
       run:
         working-directory: frontend
@@ -178,9 +172,6 @@ jobs:
 
   agent-build-test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
       - name: Checkout repository

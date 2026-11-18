@@ -58,17 +58,15 @@ SHA-256 digest, then reads the image directly from Docker Hub without running it
 GitOps desired production versions; it does not query the live cluster or prove Argo CD has finished
 deploying them. Infrastructure and seed images are outside this app-image scan scope.
 
-The default branch’s **Security → Code scanning** view shows production findings from Grype in
-`container-production-{backend,frontend,agent}`. Same-repository PRs can also publish
-`container-build-{backend,frontend,agent}` results for review. Push builds and manual release
-builds keep their build reports as SARIF artifacts without duplicating production alerts.
-All SARIF reports are retained as workflow artifacts for 14 days. Fork PRs scan and keep the
-report artifact. No `pull_request_target` workflow or registry secret is needed.
+Grype findings are available under **Actions → workflow run → Artifacts** for 14 days.
+Build reports use `container-build-{backend,frontend,agent}` and production reports use
+`container-production-{backend,frontend,agent}`. The reports are SARIF files. This applies
+to PRs, including forks, and to push, scheduled, and manual runs. No registry secret is needed.
 
 The scanner covers supported OS and application packages in the final runtime image. It reports all
 severities and findings without a published fix; a finding is a triage candidate, not proof of an
 exploitable application path. Findings alone do not fail the build or update/deploy anything.
-Scanner, vulnerability database update, registry and upload errors still fail visibly. The action
+Scanner, vulnerability database update, registry and artifact upload errors still fail visibly. The action
 refreshes its vulnerability database on every run, even when the database cache is restored.
 
 External scan/report actions are pinned to full commit SHAs, with Grype pinned separately in
@@ -76,9 +74,8 @@ External scan/report actions are pinned to full commit SHAs, with Grype pinned s
 need a reviewed change to that file. `make verify-release-workflows` checks scan wiring and the
 production selector's cadence and digest validation.
 
-See the upstream [Grype documentation](https://github.com/anchore/grype),
-[scan action](https://github.com/anchore/scan-action) and
-[SARIF integration](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github).
+See the upstream [Grype documentation](https://github.com/anchore/grype) and
+[scan action](https://github.com/anchore/scan-action).
 
 ## Version-gated application releases
 

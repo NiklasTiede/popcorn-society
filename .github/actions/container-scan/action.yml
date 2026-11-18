@@ -1,11 +1,11 @@
 name: Scan container image
-description: Report Grype findings in GitHub Security without changing the image
+description: Scan an image with Grype and save the findings as an Actions artifact
 inputs:
   image:
     description: 'Explicit docker: or registry: image reference'
     required: true
   category:
-    description: Stable SARIF category and artifact name per scan target
+    description: Stable SARIF artifact name per scan target
     required: true
 runs:
   using: composite
@@ -35,19 +35,6 @@ runs:
         if-no-files-found: error
         retention-days: 14
 
-    - name: Publish findings to GitHub Security
-      # On master, publish only production findings. Keep build reports for PR review.
-      # Fork PR tokens cannot write security events, so retain their artifact only.
-      if: >-
-        ${{ !cancelled() && steps.scan.outputs.sarif != '' &&
-            (startsWith(inputs.category, 'container-production-') || github.event_name == 'pull_request') &&
-            (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
-      uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
-      with:
-        sarif_file: ${{ steps.scan.outputs.sarif }}
-        category: ${{ inputs.category }}
-        wait-for-processing: true
-
     - name: Record scanned image
       if: ${{ !cancelled() && steps.scan.outputs.sarif != '' }}
       shell: bash
@@ -55,5 +42,5 @@ runs:
         SCAN_IMAGE: ${{ inputs.image }}
         SCAN_CATEGORY: ${{ inputs.category }}
       run: |
-        printf '### %s\n\nImage: `%s`\n\nSee the SARIF artifact for findings. Production scans and trusted PR scans also publish to Code scanning.\n' \
+        printf '### %s\n\nImage: `%s`\n\nDownload the SARIF artifact from this workflow run to review the findings.\n' \
           "$SCAN_CATEGORY" "$SCAN_IMAGE" >> "$GITHUB_STEP_SUMMARY"
