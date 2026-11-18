@@ -76,10 +76,9 @@ assert_contract(
 )
 assert_contract(
   release_job.fetch("permissions") == {
-    "actions" => "read", "contents" => "write", "pull-requests" => "write",
-    "security-events" => "write"
+    "actions" => "read", "contents" => "write", "pull-requests" => "write"
   },
-  "release job must request only artifact-read, ref-write, PR-write and SARIF-write scopes"
+  "release job must request only artifact-read, ref-write and PR-write scopes"
 )
 steps = release_job.fetch("steps")
 python_pin = File.read(File.join(repository_root, "agent/.python-version")).strip
